@@ -1,0 +1,43 @@
+# Environment
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Generated reports
+*.pdf
+
+# AgentSeal local config
+.agentseal/
+
+# Pro features (not open source)
+agentseal/probes/mcp_tools.py
+agentseal/probes/rag_poisoning.py
+agentseal/genome.py
+agentseal/report.py
