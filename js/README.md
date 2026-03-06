@@ -12,7 +12,7 @@ Find out if your AI agent can be hacked. Before someone else does.
 
 Your system prompt contains proprietary instructions, business logic, and behavioral rules. Attackers use prompt injection and extraction techniques to steal or override this data.
 
-AgentSeal sends 150 automated attack probes at your agent and tells you exactly what broke, why it broke, and how to fix it. Every scan is deterministic. No AI judge. Same input, same result, every time.
+AgentSeal sends 173 automated attack probes at your agent and tells you exactly what broke, why it broke, and how to fix it. Every scan is deterministic. No AI judge. Same input, same result, every time.
 
 ## Open Source vs Hosted
 
@@ -20,7 +20,7 @@ AgentSeal sends 150 automated attack probes at your agent and tells you exactly 
 |---|---|---|
 | **Price** | Free | Free tier available |
 | **Setup** | Bring your own API keys | Zero configuration |
-| **Probes** | 150 (extraction + injection) | 196 (+ MCP + RAG) |
+| **Probes** | 173 (extraction + injection) | 231 (+ MCP + RAG) |
 | **Mutations** | 8 adaptive transforms | 8 adaptive transforms |
 | **Reports** | JSON output | Interactive dashboard + PDF |
 | **History** | Manual tracking | Full scan history and trends |
@@ -149,12 +149,12 @@ npx agentseal compare baseline.json current.json
 
 ## Attack Categories
 
-AgentSeal runs 150 probes across two categories:
+AgentSeal runs 173 probes across two categories:
 
 | Category | Probes | Techniques |
 |---|:---:|---|
-| **Extraction** | 70 | Direct requests, roleplay overrides, output format tricks, base64/ROT13/unicode encoding, multi-turn escalation, hypothetical framing, poems, songs, fill-in-the-blank |
-| **Injection** | 80 | Instruction overrides, delimiter attacks, persona hijacking, DAN variants, privilege escalation, skeleton key, indirect injection, tool exploits, social engineering |
+| **Extraction** | 82 | Direct requests, roleplay overrides, output format tricks, base64/ROT13/unicode encoding, multi-turn escalation, hypothetical framing, poems, songs, fill-in-the-blank, ASCII smuggling, token break, BiDi text |
+| **Injection** | 91 | Instruction overrides, delimiter attacks, persona hijacking, DAN variants, privilege escalation, skeleton key, indirect injection, tool exploits, social engineering, ASCII smuggling, token break, BiDi text, enhanced markdown exfiltration |
 
 ### Adaptive Mutations
 
@@ -212,11 +212,11 @@ const validator = new AgentValidator({
 
 ## Pro Features
 
-The open source scanner covers 150 probes. [AgentSeal Pro](https://agentseal.org) extends this with:
+The open source scanner covers 173 probes. [AgentSeal Pro](https://agentseal.org) extends this with:
 
 | Feature | What it does |
 |---|---|
-| **MCP tool poisoning** (+26 probes) | Tests for hidden instructions in tool descriptions, malicious return values, cross-tool privilege escalation |
+| **MCP tool poisoning** (+38 probes) | Tests for hidden instructions in tool descriptions, malicious return values, cross-tool privilege escalation, rug pulls, tool shadowing, false error escalation |
 | **RAG poisoning** (+20 probes) | Tests for poisoned documents in retrieval pipelines |
 | **Behavioral genome mapping** | Maps your agent's decision boundaries with ~105 targeted probes |
 | **PDF security reports** | Exportable reports for compliance and audits |

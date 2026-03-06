@@ -11,7 +11,7 @@
   ╚═╝  ╚═╝  ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝
 ```
 
-AgentSeal is a security scanner for AI agents. It sends **150+ attack probes** to your agent and tells you exactly where it's vulnerable - so you can fix it before attackers find out.
+AgentSeal is a security scanner for AI agents. It sends **173+ attack probes** to your agent and tells you exactly where it's vulnerable - so you can fix it before attackers find out.
 
 ---
 
@@ -22,7 +22,7 @@ Every AI agent has a **system prompt** - the hidden instructions that tell it ho
 1. **Extract your prompt** - trick the agent into revealing its secret instructions
 2. **Inject new instructions** - override the agent's behavior and make it do something it shouldn't
 
-AgentSeal tests your agent against both of these attacks using 150+ techniques (up to ~301 with MCP, RAG, and genome probes). You get:
+AgentSeal tests your agent against both of these attacks using 173+ techniques (up to ~336 with MCP, RAG, and genome probes). You get:
 
 - A **trust score from 0 to 100** - how secure your agent is
 - A **detailed breakdown** of which attacks succeeded and which were blocked
@@ -120,7 +120,7 @@ A score of **75+** means your agent is solid. **Below 50** means serious problem
 ## How It Works
 
 ```
-┌────────────────┐  150–301 attack probes   ┌────────────────┐
+┌────────────────┐  173–336 attack probes   ┌────────────────┐
 │                │ ──────────────────────>   │                │
 │   AgentSeal    │                          │   Your Agent   │
 │                │ <──────────────────────   │                │
@@ -143,14 +143,14 @@ AgentSeal supports multiple scan modes you can combine depending on your agent's
 
 | Command | Probes | What it tests | Tier |
 |---------|:------:|---------------|:----:|
-| `agentseal scan` | 150 | Base scan - 70 extraction + 80 injection probes | Free |
-| `agentseal scan --adaptive` | 150+ | + adaptive mutation transforms on blocked probes | Free |
+| `agentseal scan` | 173 | Base scan - 82 extraction + 91 injection probes | Free |
+| `agentseal scan --adaptive` | 173+ | + adaptive mutation transforms on blocked probes | Free |
 | `agentseal watch` | 5 | Canary regression scan - fast check with baseline comparison | Free |
-| `agentseal scan --mcp` | 176 | + 26 MCP tool poisoning probes | Pro |
-| `agentseal scan --rag` | 170 | + 20 RAG poisoning probes | Pro |
-| `agentseal scan --mcp --rag` | 196 | Full attack surface - all probe categories | Pro |
-| `agentseal scan --genome` | 150 + ~105 | + Behavioral genome mapping - finds decision boundaries | Pro |
-| `agentseal scan --mcp --rag --genome` | 196 + ~105 | Everything - the most thorough scan available | Pro |
+| `agentseal scan --mcp` | 211 | + 38 MCP tool poisoning probes | Pro |
+| `agentseal scan --rag` | 193 | + 20 RAG poisoning probes | Pro |
+| `agentseal scan --mcp --rag` | 231 | Full attack surface - all probe categories | Pro |
+| `agentseal scan --genome` | 173 + ~105 | + Behavioral genome mapping - finds decision boundaries | Pro |
+| `agentseal scan --mcp --rag --genome` | 231 + ~105 | Everything - the most thorough scan available | Pro |
 
 ---
 
@@ -160,7 +160,7 @@ The core scanner is **completely free** and open source. Pro unlocks advanced pr
 
 | Feature | Free | Pro |
 |---------|:----:|:---:|
-| 150 base attack probes (extraction + injection) | Yes | Yes |
+| 173 base attack probes (extraction + injection) | Yes | Yes |
 | Adaptive mutations (`--adaptive`) | Yes | Yes |
 | Canary regression watch (`agentseal watch`) | Yes | Yes |
 | Interactive fix flow (autofix & re-scan) | Yes | Yes |
@@ -169,7 +169,7 @@ The core scanner is **completely free** and open source. Pro unlocks advanced pr
 | SARIF output for GitHub Security tab | Yes | Yes |
 | CI/CD integration (`--min-score`) | Yes | Yes |
 | Defense fingerprinting | Yes | Yes |
-| **MCP tool poisoning probes** (`--mcp`, +26 probes) | - | Yes |
+| **MCP tool poisoning probes** (`--mcp`, +38 probes) | - | Yes |
 | **RAG poisoning probes** (`--rag`, +20 probes) | - | Yes |
 | **Behavioral genome mapping** (`--genome`) | - | Yes |
 | **PDF security assessment report** (`--report`) | - | Yes |
@@ -240,7 +240,7 @@ agentseal watch --prompt "..." --model gpt-4o --webhook-url https://hooks.slack.
 ### Pro features (requires `agentseal login`)
 
 ```bash
-# MCP tool poisoning probes (+26 probes)
+# MCP tool poisoning probes (+38 probes)
 agentseal scan --prompt "..." --model gpt-4o --mcp
 
 # RAG poisoning probes (+20 probes)
@@ -529,7 +529,7 @@ Only if you're testing against a cloud model (OpenAI, Anthropic). If you use [Ol
 
 ### What's the difference between free and Pro?
 
-Free gives you the full 150-probe scanner with adaptive mutations, regression monitoring, interactive fix flow, JSON/SARIF output, and CI/CD integration. Pro adds MCP tool poisoning probes (+26), RAG poisoning probes (+20), behavioral genome mapping, PDF reports, and a dashboard. See the [comparison table](#free-vs-pro).
+Free gives you the full 173-probe scanner with adaptive mutations, regression monitoring, interactive fix flow, JSON/SARIF output, and CI/CD integration. Pro adds MCP tool poisoning probes (+38), RAG poisoning probes (+20), behavioral genome mapping, PDF reports, and a dashboard. See the [comparison table](#free-vs-pro).
 
 ### Can I contribute new attack probes?
 
