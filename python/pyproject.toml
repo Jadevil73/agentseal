@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentseal"
-version = "0.3.3"
+version = "0.4.0"
 description = "Security validator for AI agents - tests your agent's resistance to prompt extraction and injection attacks"
 requires-python = ">=3.10"
 license = {text = "FSL-1.1-Apache-2.0"}
@@ -35,7 +35,7 @@ semantic = ["onnxruntime>=1.17", "tokenizers>=0.15", "numpy>=1.24", "huggingface
 all = ["openai>=1.0", "anthropic>=0.30", "pyyaml>=6.0", "onnxruntime>=1.17", "tokenizers>=0.15", "numpy>=1.24", "huggingface-hub>=0.20"]
 
 [project.urls]
-Homepage = "https://agentseal.io"
+Homepage = "https://agentseal.org"
 Repository = "https://github.com/AgentSeal/agentseal"
 Issues = "https://github.com/AgentSeal/agentseal/issues"
 
@@ -43,6 +43,7 @@ Issues = "https://github.com/AgentSeal/agentseal/issues"
 exclude = [
     "agentseal/probes/mcp_tools.py",
     "agentseal/probes/rag_poisoning.py",
+    "agentseal/probes/multimodal.py",
     "agentseal/genome.py",
     "agentseal/report.py",
 ]
