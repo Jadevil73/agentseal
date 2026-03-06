@@ -8,10 +8,11 @@ Thank you for your interest in contributing! This guide covers how to set up you
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.10+ (for Python package)
+- Node.js 18+ (for JS package)
 - Git
 
-### Setup
+### Python Setup
 
 ```bash
 # Clone the repository
@@ -23,11 +24,10 @@ python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install in development mode
-pip install -e "./agentseal[all]"
+pip install -e "./python[all]"
 
 # Run the tests
-cd agentseal
-python -m pytest tests/ -v
+cd python && python -m pytest tests/ -v
 ```
 
 ### Verify it works
@@ -36,21 +36,30 @@ python -m pytest tests/ -v
 agentseal scan --prompt "You are a test assistant" --model ollama/llama3.1:8b
 ```
 
+### JavaScript Setup
+
+```bash
+cd js
+npm install
+npm run build
+npm test
+```
+
 ---
 
 ## What can I contribute?
 
 ### New attack probes
 
-The probes are defined in `agentseal/agentseal/probes/`. If you've found a new attack technique that AgentSeal doesn't test for, we'd love to add it.
+The probes are defined in `python/agentseal/probes/` (Python) and `js/src/probes/` (JS). If you've found a new attack technique that AgentSeal doesn't test for, we'd love to add it.
 
 ### Better detection
 
-Detection methods are in `agentseal/agentseal/detection/`. Improvements to n-gram matching, canary detection, or new detection approaches are welcome.
+Detection methods are in `python/agentseal/detection/` (Python) and `js/src/detection/` (JS). Improvements to n-gram matching, canary detection, or new detection approaches are welcome.
 
 ### New connectors
 
-Model connectors are in `agentseal/agentseal/connectors/`. If you use a provider we don't support, add a connector for it.
+Model connectors are in `python/agentseal/connectors/` (Python) and `js/src/providers/` (JS). If you use a provider we don't support, add a connector for it.
 
 ### Bug fixes
 

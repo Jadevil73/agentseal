@@ -38,12 +38,12 @@ htmlcov/
 
 # JavaScript/Node.js
 node_modules/
-agentseal/js/dist/
-agentseal/js/node_modules/
-agentseal/js/coverage/
+js/dist/
+js/node_modules/
+js/coverage/
 
 # Pro features (not open source)
-agentseal/probes/mcp_tools.py
-agentseal/probes/rag_poisoning.py
-agentseal/genome.py
-agentseal/report.py
+python/agentseal/probes/mcp_tools.py
+python/agentseal/probes/rag_poisoning.py
+python/agentseal/genome.py
+python/agentseal/report.py

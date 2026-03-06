@@ -3,7 +3,7 @@
 Security validator for AI agents — 150 attack probes to test prompt injection and extraction defenses.
 
 [![npm](https://img.shields.io/npm/v/agentseal)](https://www.npmjs.com/package/agentseal)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: FSL-1.1-Apache-2.0](https://img.shields.io/badge/License-FSL--1.1--Apache--2.0-blue.svg)](../LICENSE)
 
 ## Install
 
@@ -227,4 +227,4 @@ Visit **[agentseal.org](https://agentseal.org)** to create an account and unlock
 
 ## License
 
-MIT
+FSL-1.1-Apache-2.0 — see root [LICENSE](../LICENSE)

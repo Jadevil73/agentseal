@@ -120,17 +120,17 @@ A score of **75+** means your agent is solid. **Below 50** means serious problem
 ## How It Works
 
 ```
-┌──────────────┐   150-301 attack probes    ┌──────────────┐
-│              │ ────────────────────────>   │              │
-│  AgentSeal   │                            │  Your Agent  │
-│              │ <────────────────────────   │              │
-└──────────────┘     agent responses        └──────────────┘
-        │
-        ▼
-   Deterministic analysis (no AI judge — fully reproducible)
-        │
-        ▼
-   Trust score + detailed report + fix recommendations
+┌────────────────┐  150–301 attack probes   ┌────────────────┐
+│                │ ──────────────────────>   │                │
+│   AgentSeal    │                          │   Your Agent   │
+│                │ <──────────────────────   │                │
+└────────────────┘    agent responses       └────────────────┘
+         │
+         ▼
+  Deterministic analysis (no AI judge — fully reproducible)
+         │
+         ▼
+  Trust score + detailed report + fix recommendations
 ```
 
 **Why deterministic?** Unlike tools that use another AI to judge results, AgentSeal uses pattern matching. This means running the same scan twice gives the **exact same results** - no randomness, no extra API costs.

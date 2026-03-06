@@ -86,9 +86,8 @@ describe("package.json", () => {
     expect(existsSync(resolve(ROOT, pkg.exports["."].require.default))).toBe(true);
   });
 
-  it("has LICENSE file referenced in files array", () => {
-    expect(pkg.files).toContain("LICENSE");
-    expect(existsSync(resolve(ROOT, "LICENSE"))).toBe(true);
+  it("root LICENSE file exists", () => {
+    expect(existsSync(resolve(ROOT, "..", "LICENSE"))).toBe(true);
   });
 
   it("engines.node >= 18", () => {
