@@ -1,7 +1,9 @@
 # AgentSeal
 
 [![PyPI version](https://img.shields.io/pypi/v/agentseal?color=blue)](https://pypi.org/project/agentseal/)
-[![Downloads](https://img.shields.io/pypi/dm/agentseal)](https://pypi.org/project/agentseal/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/agentseal)](https://pypi.org/project/agentseal/)
+[![npm version](https://img.shields.io/npm/v/agentseal?color=blue)](https://www.npmjs.com/package/agentseal)
+[![npm downloads](https://img.shields.io/npm/dm/agentseal)](https://www.npmjs.com/package/agentseal)
 [![License](https://img.shields.io/badge/license-FSL--1.1--Apache--2.0-blue)](https://github.com/AgentSeal/agentseal/blob/main/LICENSE)
 [![Twitter](https://img.shields.io/twitter/follow/agentseal_org)](https://x.com/agentseal_org)
 
