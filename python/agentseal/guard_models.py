@@ -209,6 +209,7 @@ class GuardReport:
     mcp_results: list[MCPServerResult]
     toxic_flows: list[ToxicFlowResult] = field(default_factory=list)
     baseline_changes: list[BaselineChangeResult] = field(default_factory=list)
+    llm_tokens_used: int = 0
 
     @property
     def total_dangers(self) -> int:
@@ -278,6 +279,8 @@ class GuardReport:
             d["toxic_flows"] = [f.to_dict() for f in self.toxic_flows]
         if self.baseline_changes:
             d["baseline_changes"] = [c.to_dict() for c in self.baseline_changes]
+        if self.llm_tokens_used > 0:
+            d["llm_tokens_used"] = self.llm_tokens_used
         return d
 
     def to_json(self, indent: int = 2) -> str:

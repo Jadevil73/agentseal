@@ -74,6 +74,40 @@ class TestPublicAPI:
         from agentseal import Shield
         assert Shield is not None
 
+    def test_profiles(self):
+        from agentseal import ProfileConfig, PROFILES, resolve_profile, apply_profile
+        assert ProfileConfig is not None
+        assert PROFILES is not None
+        assert resolve_profile is not None
+        assert apply_profile is not None
+
+    def test_chains(self):
+        from agentseal import AttackChain, ChainStep, detect_chains
+        assert AttackChain is not None
+        assert ChainStep is not None
+        assert detect_chains is not None
+
+    def test_fix(self):
+        from agentseal import quarantine_skill, restore_skill, list_quarantine
+        assert quarantine_skill is not None
+        assert restore_skill is not None
+        assert list_quarantine is not None
+
+    def test_deobfuscate(self):
+        from agentseal import deobfuscate
+        assert deobfuscate is not None
+
+    def test_probe_loader(self):
+        from agentseal import load_custom_probes, load_all_custom_probes
+        assert load_custom_probes is not None
+        assert load_all_custom_probes is not None
+
+    def test_llm_judge(self):
+        from agentseal import LLMJudge, LLMJudgeResult
+        # LLMJudge may be None if optional deps are not installed
+        if LLMJudge is not None:
+            assert LLMJudgeResult is not None
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Canonical imports (new module paths)
@@ -123,9 +157,9 @@ class TestCanonicalImports:
         assert callable(build_injection_probes)
 
     def test_probes_loader(self):
-        from agentseal.probes.loader import load_custom_probes
-        with pytest.raises(NotImplementedError):
-            load_custom_probes("fake.yaml")
+        from agentseal.probes.loader import load_custom_probes, load_all_custom_probes
+        assert callable(load_custom_probes)
+        assert callable(load_all_custom_probes)
 
     def test_detection_package(self):
         from agentseal.detection import detect_canary, detect_extraction, extract_unique_phrases, is_refusal

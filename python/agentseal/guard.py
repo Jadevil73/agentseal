@@ -7,17 +7,20 @@ a single zero-config experience. The user types `agentseal guard` and
 gets a complete security report of their machine.
 
 All operations are synchronous and local — no network requests needed
-(except optional blocklist update). No async, no LLM calls.
+(except optional blocklist update and optional LLM judge analysis).
 """
 
+import asyncio
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Callable, Optional
 
 from agentseal.baselines import BaselineStore
 from agentseal.guard_models import (
     BaselineChangeResult,
     GuardReport,
+    GuardVerdict,
     ToxicFlowResult,
 )
 from agentseal.machine_discovery import scan_machine
@@ -38,10 +41,12 @@ class Guard:
         semantic: bool = True,
         verbose: bool = False,
         on_progress: Optional[ProgressFn] = None,
+        llm_judge=None,
     ):
         self.semantic = semantic
         self.verbose = verbose
         self._progress = on_progress or (lambda *a: None)
+        self._llm_judge = llm_judge
 
     def run(self) -> GuardReport:
         """Execute full guard scan. Returns a GuardReport with all findings."""
@@ -60,11 +65,62 @@ class Guard:
 
         # Phase 2: Scan skills
         self._progress("skills", f"Scanning {len(skill_paths)} skills for threats...")
-        scanner = SkillScanner(semantic=self.semantic)
+        scanner = SkillScanner(semantic=self.semantic, llm_judge=self._llm_judge)
         skill_results = []
         for i, path in enumerate(skill_paths):
             self._progress("skills", f"[{i + 1}/{len(skill_paths)}] {path.name}")
             skill_results.append(scanner.scan_file(path))
+
+        # Phase 2b: LLM judge analysis (async, only for SAFE/WARNING skills)
+        llm_tokens_used = 0
+        if self._llm_judge is not None:
+            candidates = [
+                (i, sr) for i, sr in enumerate(skill_results)
+                if sr.verdict in (GuardVerdict.SAFE, GuardVerdict.WARNING)
+            ]
+            if candidates:
+                self._progress("llm_judge", f"Running LLM analysis on {len(candidates)} skill(s)...")
+
+                async def _run_llm():
+                    tokens = 0
+                    for idx, sr in candidates:
+                        self._progress("llm_judge", f"Analyzing {sr.name}...")
+                        content = Path(sr.path).read_text(encoding="utf-8", errors="replace")
+                        llm_findings, used = await scanner.analyze_with_llm(content, Path(sr.path).name)
+                        tokens += used
+                        if llm_findings:
+                            sr.findings.extend(llm_findings)
+                            # Upgrade verdict if LLM found worse issues
+                            worst = sr.verdict
+                            for f in llm_findings:
+                                if f.severity == "critical":
+                                    worst = GuardVerdict.DANGER
+                                elif f.severity in ("high", "medium") and worst == GuardVerdict.SAFE:
+                                    worst = GuardVerdict.WARNING
+                            # Never downgrade
+                            _ORDER = {GuardVerdict.SAFE: 0, GuardVerdict.WARNING: 1, GuardVerdict.DANGER: 2}
+                            if _ORDER.get(worst, 0) > _ORDER.get(sr.verdict, 0):
+                                skill_results[idx] = type(sr)(
+                                    name=sr.name,
+                                    path=sr.path,
+                                    verdict=worst,
+                                    findings=sr.findings,
+                                    blocklist_match=sr.blocklist_match,
+                                    sha256=sr.sha256,
+                                )
+                    return tokens
+
+                def _run_async(coro):
+                    try:
+                        return asyncio.run(coro)
+                    except RuntimeError:
+                        import warnings
+                        warnings.warn("LLM judge skipped: cannot run async in existing event loop. "
+                                      "Use 'pip install nest_asyncio' for Jupyter/async support.")
+                        return 0
+
+                llm_tokens_used = _run_async(_run_llm())
+                self._progress("llm_judge", f"LLM analysis complete ({llm_tokens_used} tokens)")
 
         # Phase 3: Check MCP configs
         self._progress("mcp", f"Checking {len(mcp_servers)} MCP server configurations...")
@@ -118,4 +174,5 @@ class Guard:
             mcp_results=mcp_results,
             toxic_flows=toxic_flow_results,
             baseline_changes=baseline_results,
+            llm_tokens_used=llm_tokens_used,
         )

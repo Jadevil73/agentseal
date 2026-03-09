@@ -18,6 +18,7 @@ from pathlib import Path
 import yaml
 
 from agentseal.blocklist import Blocklist
+from agentseal.deobfuscate import deobfuscate
 from agentseal.detection.skill_detector import SkillDetector
 from agentseal.guard_models import GuardVerdict, SkillFinding, SkillResult
 
@@ -25,9 +26,10 @@ from agentseal.guard_models import GuardVerdict, SkillFinding, SkillResult
 class SkillScanner:
     """Scan skill files for malware, injection, and suspicious patterns."""
 
-    def __init__(self, semantic: bool = True):
+    def __init__(self, semantic: bool = True, llm_judge=None):
         self._detector = SkillDetector()
         self._blocklist = Blocklist()
+        self._llm_judge = llm_judge
 
         # Check if semantic analysis is available
         self._semantic_available = False
@@ -107,8 +109,15 @@ class SkillScanner:
                 sha256=sha256,
             )
 
-        # Layer 2: Static pattern matching
+        # Layer 2: Static pattern matching (on original + deobfuscated content)
         findings = self._detector.scan_patterns(content)
+        deobfuscated = deobfuscate(content)
+        if deobfuscated != content:
+            deob_findings = self._detector.scan_patterns(deobfuscated)
+            existing = {(f.code, f.evidence) for f in findings}
+            for f in deob_findings:
+                if (f.code, f.evidence) not in existing:
+                    findings.append(f)
 
         # Layer 3: Semantic analysis (if available and no critical patterns found)
         if self._semantic_available:
@@ -128,6 +137,29 @@ class SkillScanner:
             findings=findings,
             sha256=sha256,
         )
+
+    async def analyze_with_llm(self, content: str, filename: str) -> tuple[list[SkillFinding], int]:
+        """Run LLM judge analysis and convert results to SkillFindings.
+
+        Returns (findings, tokens_used). Returns ([], 0) if llm_judge is
+        None or the result has an error.
+        """
+        if self._llm_judge is None:
+            return [], 0
+        result = await self._llm_judge.analyze_skill(content, filename)
+        if result.error:
+            return [], result.tokens_used
+        findings = []
+        for f in result.findings:
+            findings.append(SkillFinding(
+                code=f"LLM-{f.get('severity', 'medium').upper()[:4]}",
+                title=f.get("title", "LLM-detected issue"),
+                description=f.get("reasoning", ""),
+                severity=f.get("severity", "medium"),
+                evidence=f.get("evidence", ""),
+                remediation="Review this finding from LLM analysis.",
+            ))
+        return findings, result.tokens_used
 
     def scan_paths(self, paths: list[Path]) -> list[SkillResult]:
         """Scan a list of skill file paths."""

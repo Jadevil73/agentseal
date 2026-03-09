@@ -57,6 +57,8 @@ from agentseal.probes.injection import make_data_extraction_variant as _make_dat
 from agentseal.detection.ngram import detect_extraction as _detect_extraction
 from agentseal.scoring import compute_scores as _compute_scores
 from agentseal import constants as _constants
+from agentseal.chains import detect_chains as _detect_chains
+from agentseal.probes.loader import load_custom_probes as _load_custom_probes
 
 # Private aliases for internal use by AgentValidator.
 # NOT exported at module level - so __getattr__ fires for deprecated imports.
@@ -134,6 +136,7 @@ class AgentValidator:
         mcp: bool = False,
         rag: bool = False,
         multimodal: bool = False,
+        custom_probes=None,
     ):
         """
         Args:
@@ -150,6 +153,7 @@ class AgentValidator:
             mcp: Include MCP tool poisoning probes (45 additional injection probes).
             rag: Include RAG poisoning probes (28 additional injection probes).
             multimodal: Include multimodal attack probes (13 additional injection probes).
+            custom_probes: Path to YAML probes file/directory, or list of probe dicts.
         """
         self.agent_fn = agent_fn
         self.ground_truth = ground_truth_prompt
@@ -163,6 +167,7 @@ class AgentValidator:
         self.mcp = mcp
         self.rag = rag
         self.multimodal = multimodal
+        self.custom_probes = custom_probes
 
         if self.semantic:
             from agentseal.detection.semantic import is_available
@@ -304,6 +309,22 @@ class AgentValidator:
         if self.multimodal:
             from agentseal.probes.multimodal import build_multimodal_probes
             injection_probes.extend(build_multimodal_probes())
+
+        # ── Custom probes ────────────────────────────────────────────
+        if self.custom_probes:
+            from pathlib import Path as _Path
+            if isinstance(self.custom_probes, (str, _Path)):
+                custom = _load_custom_probes(self.custom_probes)
+            elif isinstance(self.custom_probes, list):
+                custom = self.custom_probes
+            else:
+                custom = []
+            for cp in custom:
+                cp_type = cp.get("type", "extraction")
+                if cp_type == "injection":
+                    injection_probes.append(cp)
+                else:
+                    extraction_probes.append(cp)
 
         # ── Phase 1: Extraction ──────────────────────────────────────
         sem = asyncio.Semaphore(self.concurrency)
@@ -605,6 +626,26 @@ class AgentValidator:
 
         duration = time.time() - start_time
 
+        # ── Phase 7: Attack Chain Detection ──────────────────────────
+        # Build a temporary report to detect chains, then include them
+        _tmp_report = _ScanReport(
+            agent_name=self.agent_name,
+            scan_id=scan_id,
+            timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            duration_seconds=duration,
+            total_probes=len(all_results),
+            probes_blocked=sum(1 for r in all_results if r.verdict == _Verdict.BLOCKED),
+            probes_leaked=sum(1 for r in all_results if r.verdict == _Verdict.LEAKED),
+            probes_partial=sum(1 for r in all_results if r.verdict == _Verdict.PARTIAL),
+            probes_error=sum(1 for r in all_results if r.verdict == _Verdict.ERROR),
+            trust_score=scores["overall"],
+            trust_level=trust_level,
+            score_breakdown=scores,
+            results=all_results,
+            ground_truth_provided=self.ground_truth is not None,
+        )
+        attack_chains = _detect_chains(_tmp_report)
+
         return _ScanReport(
             agent_name=self.agent_name,
             scan_id=scan_id,
@@ -623,4 +664,5 @@ class AgentValidator:
             defense_profile=defense_profile.to_dict() if defense_profile.defense_system != "unknown" else None,
             mutation_results=mutation_results_list,
             mutation_resistance=mutation_resistance,
+            attack_chains=attack_chains,
         )

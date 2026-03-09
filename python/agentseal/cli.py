@@ -32,6 +32,14 @@ import sys
 import time
 from pathlib import Path
 
+from agentseal.profiles import PROFILES, resolve_profile, apply_profile, list_profiles
+from agentseal.chains import detect_chains, AttackChain
+from agentseal.fix import (
+    save_report, load_guard_report, load_scan_report,
+    get_fixable_skills, quarantine_skill, restore_skill,
+    list_quarantine, generate_hardened_prompt_from_report,
+)
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # LICENSE CHECK - Pro features require a license
@@ -174,9 +182,9 @@ def main():
     # Behavior
     scan_parser.add_argument("--name", type=str, default="My Agent",
                              help="Agent name for the report")
-    scan_parser.add_argument("--concurrency", type=int, default=3,
+    scan_parser.add_argument("--concurrency", type=int, default=None,
                              help="Max parallel probes (default: 3)")
-    scan_parser.add_argument("--timeout", type=float, default=30.0,
+    scan_parser.add_argument("--timeout", type=float, default=None,
                              help="Timeout per probe in seconds (default: 30)")
     scan_parser.add_argument("--verbose", "-v", action="store_true",
                              help="Show each probe result as it completes")
@@ -224,6 +232,14 @@ def main():
                              help="Max categories to analyze in genome scan (default: 3)")
     scan_parser.add_argument("--genome-probes", type=int, default=5,
                              help="Max probes per category in genome scan (default: 5)")
+
+    # Profile preset
+    scan_parser.add_argument("--profile", choices=list(PROFILES.keys()),
+                             help="Scan profile preset")
+
+    # Custom probes
+    scan_parser.add_argument("--probes", type=str, default=None,
+                             help="Path to custom YAML probes file or directory")
 
     # Quick inline
     scan_parser.add_argument("prompt_inline", nargs="?", type=str, default=None,
@@ -329,6 +345,26 @@ def main():
         "--reset-baselines", action="store_true",
         help="Reset all MCP server baselines (re-trust all servers)",
     )
+    guard_parser.add_argument(
+        "--model", type=str, default=None,
+        help="LLM model for judge-based skill scanning",
+    )
+    guard_parser.add_argument(
+        "--api-key", type=str, default=None,
+        help="API key for LLM judge",
+    )
+    guard_parser.add_argument(
+        "--ollama-url", type=str, default="http://localhost:11434",
+        help="Ollama base URL for LLM judge",
+    )
+    guard_parser.add_argument(
+        "--litellm-url", type=str, default=None,
+        help="LiteLLM proxy URL for LLM judge",
+    )
+    guard_parser.add_argument(
+        "--llm-all", action="store_true",
+        help="Use LLM judge on all skills (not just suspicious ones)",
+    )
 
     # ── shield command ───────────────────────────────────────────────
     shield_parser = subparsers.add_parser(
@@ -359,6 +395,48 @@ def main():
         "--reset-baselines", action="store_true",
         help="Reset all MCP server baselines before starting",
     )
+    shield_parser.add_argument(
+        "--model", type=str, default=None,
+        help="LLM model for judge-based skill scanning",
+    )
+    shield_parser.add_argument(
+        "--api-key", type=str, default=None,
+        help="API key for LLM judge",
+    )
+    shield_parser.add_argument(
+        "--ollama-url", type=str, default="http://localhost:11434",
+        help="Ollama base URL for LLM judge",
+    )
+    shield_parser.add_argument(
+        "--litellm-url", type=str, default=None,
+        help="LiteLLM proxy URL for LLM judge",
+    )
+    shield_parser.add_argument(
+        "--llm-all", action="store_true",
+        help="Use LLM judge on all skills (not just suspicious ones)",
+    )
+
+    # ── fix command ──────────────────────────────────────────────────
+    fix_parser = subparsers.add_parser("fix", help="Fix dangerous skills and harden prompts")
+    fix_parser.add_argument("--from-guard", action="store_true",
+                            help="Load guard report and quarantine dangerous skills")
+    fix_parser.add_argument("--from-scan", action="store_true",
+                            help="Load scan report and generate hardened prompt")
+    fix_parser.add_argument("--report", type=str, default=None, metavar="FILE",
+                            help="Path to report file (instead of latest)")
+    fix_parser.add_argument("--auto", action="store_true",
+                            help="Quarantine all DANGER skills without prompting")
+    fix_parser.add_argument("--dry-run", action="store_true",
+                            help="Show what would be done without doing it")
+    fix_parser.add_argument("--list-quarantine", action="store_true",
+                            help="List quarantined skills")
+    fix_parser.add_argument("--restore", type=str, default=None, metavar="NAME",
+                            help="Restore a quarantined skill by name")
+    fix_parser.add_argument("--output", type=str, default=None, metavar="FILE",
+                            help="Save hardened prompt to file")
+
+    # ── profiles command ─────────────────────────────────────────────
+    profiles_parser = subparsers.add_parser("profiles", help="List available scan profiles")
 
     args = parser.parse_args()
 
@@ -376,6 +454,10 @@ def main():
         _run_guard(args)
     elif args.command == "shield":
         _run_shield(args)
+    elif args.command == "fix":
+        _run_fix(args)
+    elif args.command == "profiles":
+        print(list_profiles())
     else:
         _print_banner()
         parser.print_help()
@@ -421,12 +503,30 @@ def _run_guard(args):
         print(f"  {'─' * 48}")
         print()
 
+    llm_judge = None
+    if getattr(args, "model", None):
+        from agentseal.llm_judge import LLMJudge
+        llm_judge = LLMJudge(
+            model=args.model,
+            api_key=getattr(args, "api_key", None),
+            ollama_url=getattr(args, "ollama_url", None),
+            litellm_url=getattr(args, "litellm_url", None),
+            scan_all=getattr(args, "llm_all", False),
+        )
+
     guard = Guard(
         semantic=not getattr(args, "no_semantic", False),
         verbose=verbose,
         on_progress=on_progress,
+        **({"llm_judge": llm_judge} if llm_judge else {}),
     )
     report = guard.run()
+
+    # ── Auto-save report ──────────────────────────────────────────
+    try:
+        save_report(json.loads(report.to_json()), "guard")
+    except Exception:
+        pass  # Best-effort save
 
     # ── JSON output ────────────────────────────────────────────────
     if json_mode:
@@ -614,11 +714,23 @@ def _run_shield(args):
         elif event_type == "error":
             print(f"  {D}[{ts}]{RST} {D}ERROR{RST}   {path} — {summary}")
 
+    llm_judge = None
+    if getattr(args, "model", None):
+        from agentseal.llm_judge import LLMJudge
+        llm_judge = LLMJudge(
+            model=args.model,
+            api_key=getattr(args, "api_key", None),
+            ollama_url=getattr(args, "ollama_url", None),
+            litellm_url=getattr(args, "litellm_url", None),
+            scan_all=getattr(args, "llm_all", False),
+        )
+
     shield = Shield(
         semantic=not getattr(args, "no_semantic", False),
         notify=not getattr(args, "no_notify", False),
         debounce_seconds=getattr(args, "debounce", 2.0),
         on_event=on_event,
+        **({"llm_judge": llm_judge} if llm_judge else {}),
     )
 
     dirs_watched, files_watched = shield.start()
@@ -667,6 +779,16 @@ def _resolve_prompt(args, require_url: bool = True) -> str | None:
 async def _run_scan(args):
     from agentseal.validator import AgentValidator, ScanReport
 
+    # ── Apply profile if specified ───────────────────────────────────
+    if getattr(args, "profile", None):
+        apply_profile(args, resolve_profile(args.profile))
+
+    # ── Apply defaults for optional fields not set by user or profile ─
+    if args.concurrency is None:
+        args.concurrency = 3
+    if args.timeout is None:
+        args.timeout = 30.0
+
     # ── Resolve system prompt ────────────────────────────────────────
     system_prompt = _resolve_prompt(args)
 
@@ -701,6 +823,7 @@ async def _run_scan(args):
             semantic=args.semantic,
             mcp=args.mcp,
             rag=args.rag,
+            custom_probes=getattr(args, "probes", None),
         )
     elif system_prompt and args.model:
         # Direct model testing
@@ -723,6 +846,7 @@ async def _run_scan(args):
             semantic=args.semantic,
             mcp=args.mcp,
             rag=args.rag,
+            custom_probes=getattr(args, "probes", None),
         )
     else:
         print("Error: --model is required when testing a prompt directly", file=sys.stderr)
@@ -779,11 +903,20 @@ async def _run_scan(args):
         )
         report.genome_report = genome_report.to_dict()
 
+    # ── Auto-save report ─────────────────────────────────────────────
+    try:
+        save_report(report.to_dict(), "scan")
+    except Exception:
+        pass  # Best-effort save
+
     # ── Output ───────────────────────────────────────────────────────
     if args.output == "terminal":
         report.print()
         if genome_report:
             genome_report.print()
+        # Attack chain display
+        if report.attack_chains:
+            _print_attack_chains(report.attack_chains, verbose=args.verbose)
     elif args.output == "json":
         print(report.to_json())
     elif args.output == "sarif":
@@ -1525,6 +1658,237 @@ def _cli_progress(phase: str, completed: int, total: int):
     else:
         print(f"\r  \033[92m✓\033[0m {phase:12s} [{bar}] {completed}/{total}  \033[92m{pct}%\033[0m  ")
 
+
+
+def _print_attack_chains(chains, verbose=False):
+    """Print attack chains to terminal."""
+    R = "\033[91m"     # Red
+    Y = "\033[93m"     # Yellow
+    G = "\033[92m"     # Green
+    D = "\033[90m"     # Dim
+    C = "\033[96m"     # Cyan
+    B = "\033[1m"      # Bold
+    RST = "\033[0m"    # Reset
+
+    print()
+    print(f"  {B}ATTACK CHAINS{RST}")
+    print(f"  {'─' * 48}")
+    print()
+
+    for chain in chains:
+        sev = chain.severity if isinstance(chain.severity, str) else chain.severity
+        sev_color = R if sev == "critical" else Y
+        title = chain.title if hasattr(chain, "title") else chain.get("title", "")
+        desc = chain.description if hasattr(chain, "description") else chain.get("description", "")
+        remediation = chain.remediation if hasattr(chain, "remediation") else chain.get("remediation", "")
+        steps = chain.steps if hasattr(chain, "steps") else chain.get("steps", [])
+
+        print(f"  {sev_color}[{sev.upper()}]{RST} {B}{title}{RST}")
+
+        if verbose:
+            print(f"  {D}{desc}{RST}")
+            print()
+            for step in steps:
+                step_num = step.step_number if hasattr(step, "step_number") else step.get("step_number", 0)
+                summary = step.summary if hasattr(step, "summary") else step.get("summary", "")
+                probe_id = step.probe_id if hasattr(step, "probe_id") else step.get("probe_id", "")
+                verdict = step.verdict if hasattr(step, "verdict") else step.get("verdict", "")
+                v_color = R if verdict == "leaked" else Y
+                print(f"    {D}{step_num}.{RST} {summary}")
+                print(f"       {D}probe: {probe_id}  verdict: {v_color}{verdict}{RST}")
+            print()
+            print(f"    {C}Remediation: {remediation}{RST}")
+        else:
+            step_count = len(steps)
+            print(f"    {D}{step_count}-step chain | {remediation[:70]}{RST}")
+
+        print()
+
+
+def _run_fix(args):
+    """Run the fix command -- quarantine skills and harden prompts."""
+    R = "\033[91m"
+    Y = "\033[93m"
+    G = "\033[92m"
+    D = "\033[90m"
+    C = "\033[96m"
+    B = "\033[1m"
+    RST = "\033[0m"
+
+    # ── List quarantine ──────────────────────────────────────────────
+    if getattr(args, "list_quarantine", False):
+        entries = list_quarantine()
+        if not entries:
+            print(f"  {D}No quarantined skills.{RST}")
+            return
+        print(f"  {B}QUARANTINED SKILLS{RST}")
+        print(f"  {'─' * 48}")
+        for e in entries:
+            print(f"  {Y}{e.skill_name}{RST}")
+            print(f"    {D}Original: {e.original_path}{RST}")
+            print(f"    {D}Reason:   {e.reason}{RST}")
+            print(f"    {D}Date:     {e.timestamp}{RST}")
+        print()
+        return
+
+    # ── Restore skill ────────────────────────────────────────────────
+    if getattr(args, "restore", None):
+        try:
+            restored_path = restore_skill(args.restore)
+            print(f"  {G}Restored '{args.restore}' to {restored_path}{RST}")
+        except (FileNotFoundError, FileExistsError) as e:
+            print(f"  {R}{e}{RST}", file=sys.stderr)
+            sys.exit(1)
+        return
+
+    # ── Determine source ─────────────────────────────────────────────
+    from_guard = getattr(args, "from_guard", False)
+    from_scan = getattr(args, "from_scan", False)
+    report_path = getattr(args, "report", None)
+    auto_mode = getattr(args, "auto", False)
+    dry_run = getattr(args, "dry_run", False)
+
+    if from_guard:
+        try:
+            guard_report = load_guard_report(Path(report_path) if report_path else None)
+        except FileNotFoundError as e:
+            print(f"  {R}{e}{RST}", file=sys.stderr)
+            sys.exit(1)
+        _fix_from_guard(guard_report, auto_mode, dry_run)
+    elif from_scan:
+        try:
+            scan_report = load_scan_report(Path(report_path) if report_path else None)
+        except FileNotFoundError as e:
+            print(f"  {R}{e}{RST}", file=sys.stderr)
+            sys.exit(1)
+        _fix_from_scan(scan_report, args)
+    else:
+        # Try guard first, then scan
+        try:
+            guard_report = load_guard_report(Path(report_path) if report_path else None)
+            _fix_from_guard(guard_report, auto_mode, dry_run)
+            return
+        except FileNotFoundError:
+            pass
+        try:
+            scan_report = load_scan_report(Path(report_path) if report_path else None)
+            _fix_from_scan(scan_report, args)
+            return
+        except FileNotFoundError:
+            pass
+        print(f"  {R}No guard or scan report found.{RST}")
+        print(f"  {D}Run 'agentseal guard' or 'agentseal scan' first.{RST}")
+        sys.exit(1)
+
+
+def _fix_from_guard(guard_report, auto_mode, dry_run):
+    """Handle fix from guard report -- quarantine dangerous skills."""
+    R = "\033[91m"
+    Y = "\033[93m"
+    G = "\033[92m"
+    D = "\033[90m"
+    C = "\033[96m"
+    B = "\033[1m"
+    RST = "\033[0m"
+
+    fixable = get_fixable_skills(guard_report)
+    if not fixable:
+        print(f"  {G}No dangerous skills found in guard report.{RST}")
+        return
+
+    print(f"  {B}FIXABLE SKILLS{RST} ({len(fixable)} dangerous)")
+    print(f"  {'─' * 48}")
+    print()
+
+    for skill in fixable:
+        name = skill["name"]
+        path = skill["path"]
+        findings = skill["findings"]
+
+        print(f"  {R}[DANGER]{RST} {B}{name}{RST}")
+        print(f"    {D}Path: {path}{RST}")
+        for f in findings[:3]:
+            title = f.get("title", "")
+            print(f"    {Y}- {title}{RST}")
+
+        if auto_mode:
+            if dry_run:
+                print(f"    {C}[DRY RUN] Would quarantine {name}{RST}")
+            else:
+                if path and Path(path).exists():
+                    try:
+                        entry = quarantine_skill(Path(path), reason=f"DANGER: {findings[0].get('title', '') if findings else 'flagged by guard'}")
+                        print(f"    {G}Quarantined -> {entry.quarantine_path}{RST}")
+                    except Exception as e:
+                        print(f"    {R}Failed to quarantine: {e}{RST}")
+                else:
+                    print(f"    {Y}Path not found, skipping{RST}")
+        elif sys.stdin.isatty():
+            try:
+                answer = input(f"    Quarantine this skill? [y/N/s/q] ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                return
+            if answer == "q":
+                return
+            elif answer == "s":
+                continue
+            elif answer == "y":
+                if dry_run:
+                    print(f"    {C}[DRY RUN] Would quarantine {name}{RST}")
+                elif path and Path(path).exists():
+                    try:
+                        entry = quarantine_skill(Path(path), reason=f"DANGER: {findings[0].get('title', '') if findings else 'flagged by guard'}")
+                        print(f"    {G}Quarantined -> {entry.quarantine_path}{RST}")
+                    except Exception as e:
+                        print(f"    {R}Failed to quarantine: {e}{RST}")
+                else:
+                    print(f"    {Y}Path not found, skipping{RST}")
+
+        print()
+
+
+def _fix_from_scan(scan_report, args):
+    """Handle fix from scan report -- generate hardened prompt."""
+    R = "\033[91m"
+    G = "\033[92m"
+    D = "\033[90m"
+    C = "\033[96m"
+    B = "\033[1m"
+    RST = "\033[0m"
+
+    # Need original prompt to harden
+    original_prompt = scan_report.get("original_prompt", "")
+    if not original_prompt:
+        # Try to find it from the report's agent name or ask user
+        print(f"  {D}Scan report does not contain original prompt.{RST}")
+        print(f"  {D}Provide the original prompt with --file or --prompt to generate hardened version.{RST}")
+        return
+
+    dry_run = getattr(args, "dry_run", False)
+    output_path = getattr(args, "output", None)
+
+    hardened = generate_hardened_prompt_from_report(scan_report, original_prompt)
+    if hardened is None:
+        print(f"  {G}No fixes needed -- all probes were blocked.{RST}")
+        return
+
+    # Show diff
+    print(f"  {C}{B}HARDENED PROMPT{RST}")
+    print(f"  {D}{'─' * 56}{RST}")
+    added = hardened[len(original_prompt.rstrip()):]
+    clauses = [l.lstrip("- ") for l in added.strip().splitlines() if l.strip().startswith("- ")]
+    for i, clause in enumerate(clauses, 1):
+        print(f"  {G}  {i:2d}. {clause}{RST}")
+    print(f"  {D}{'─' * 56}{RST}")
+
+    if dry_run:
+        print(f"  {C}[DRY RUN] Would save hardened prompt{RST}")
+        return
+
+    if output_path:
+        Path(output_path).write_text(hardened, encoding="utf-8")
+        print(f"  {G}Hardened prompt saved to: {output_path}{RST}")
 
 
 def _to_sarif(report) -> dict:

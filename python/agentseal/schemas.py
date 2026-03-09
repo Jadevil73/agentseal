@@ -98,6 +98,7 @@ class ScanReport:
     mutation_results: list = field(default_factory=list)
     mutation_resistance: Optional[float] = None
     genome_report: Optional[dict] = None
+    attack_chains: list = field(default_factory=list)
 
     def to_dict(self) -> dict:
         d = {
@@ -154,6 +155,11 @@ class ScanReport:
             d["mutation_resistance"] = round(self.mutation_resistance, 1) if self.mutation_resistance is not None else None
         if self.genome_report is not None:
             d["genome"] = self.genome_report
+        if self.attack_chains:
+            d["attack_chains"] = [
+                c.to_dict() if hasattr(c, "to_dict") else c
+                for c in self.attack_chains
+            ]
         # Include structured remediation when serializing
         remediation = self.get_structured_remediation()
         if remediation.items and remediation.items[0].category:  # Skip "no issues" placeholder

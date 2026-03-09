@@ -34,12 +34,24 @@ from agentseal.guard_models import (
     ToxicFlowResult,
     BaselineChangeResult,
 )
+from agentseal.profiles import ProfileConfig, PROFILES, resolve_profile, apply_profile
+from agentseal.chains import AttackChain, ChainStep, detect_chains
+from agentseal.fix import quarantine_skill, restore_skill, list_quarantine
+from agentseal.deobfuscate import deobfuscate
+from agentseal.probes.loader import load_custom_probes, load_all_custom_probes
 
 # Shield is only available when watchdog is installed
 try:
     from agentseal.shield import Shield
 except ImportError:
     Shield = None  # type: ignore[assignment,misc]
+
+# LLM judge is only available when optional deps are installed
+try:
+    from agentseal.llm_judge import LLMJudge, LLMJudgeResult
+except ImportError:
+    LLMJudge = None  # type: ignore[assignment,misc]
+    LLMJudgeResult = None  # type: ignore[assignment,misc]
 
 __version__ = "0.5.2"
 __all__ = [
@@ -63,6 +75,21 @@ __all__ = [
     "ToxicFlowResult",
     "BaselineChangeResult",
     "Shield",
+    "ProfileConfig",
+    "PROFILES",
+    "resolve_profile",
+    "apply_profile",
+    "AttackChain",
+    "ChainStep",
+    "detect_chains",
+    "quarantine_skill",
+    "restore_skill",
+    "list_quarantine",
+    "deobfuscate",
+    "load_custom_probes",
+    "load_all_custom_probes",
+    "LLMJudge",
+    "LLMJudgeResult",
 ]
 
 # Conditional export - only available when semantic deps are installed
