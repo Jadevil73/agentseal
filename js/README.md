@@ -225,10 +225,22 @@ The open source scanner covers 173 probes. [AgentSeal Pro](https://agentseal.org
 
 [Start scanning at agentseal.org](https://agentseal.org)
 
-## Also Available in Python
+## NEW: `agentseal guard` (Python CLI)
+
+One command scans your entire machine for AI agent threats. No config, no API keys needed.
 
 ```bash
 pip install agentseal
+agentseal guard
+```
+
+- Auto-discovers **17 AI agents** (Claude, Cursor, VS Code, Windsurf, Cline, Roo Code, Zed, and more)
+- Scans every **skill/rules file** for malware, credential theft, prompt injection, reverse shells
+- Audits every **MCP server config** for sensitive path access, hardcoded API keys, broad permissions
+- Red/yellow/green results with numbered action items
+
+```bash
+# Also available: prompt injection scanner
 agentseal scan --prompt "You are a helpful assistant" --model gpt-4o
 ```
 
