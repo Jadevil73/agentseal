@@ -50,6 +50,26 @@ class TestPublicAPI:
         from agentseal import apply_mutation
         assert callable(apply_mutation)
 
+    def test_guard(self):
+        from agentseal import Guard
+        assert Guard is not None
+
+    def test_guard_report(self):
+        from agentseal import GuardReport
+        assert GuardReport is not None
+
+    def test_guard_verdict(self):
+        from agentseal import GuardVerdict
+        assert GuardVerdict is not None
+
+    def test_skill_result(self):
+        from agentseal import SkillResult
+        assert SkillResult is not None
+
+    def test_mcp_server_result(self):
+        from agentseal import MCPServerResult
+        assert MCPServerResult is not None
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Canonical imports (new module paths)

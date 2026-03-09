@@ -25,8 +25,15 @@ from agentseal.schemas import (
 from agentseal.remediation import RemediationReport, RemediationItem, AffectedProbe
 from agentseal.fingerprint import DefenseProfile
 from agentseal.mutations import TRANSFORMS, apply_mutation
+from agentseal.guard import Guard
+from agentseal.guard_models import (
+    GuardReport,
+    GuardVerdict,
+    SkillResult,
+    MCPServerResult,
+)
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 __all__ = [
     "AgentValidator",
     "ScanReport",
@@ -40,6 +47,11 @@ __all__ = [
     "DefenseProfile",
     "TRANSFORMS",
     "apply_mutation",
+    "Guard",
+    "GuardReport",
+    "GuardVerdict",
+    "SkillResult",
+    "MCPServerResult",
 ]
 
 # Conditional export - only available when semantic deps are installed

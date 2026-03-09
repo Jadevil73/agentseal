@@ -301,6 +301,31 @@ def main():
     compare_parser.add_argument("--output", "-o", type=str, choices=["terminal", "json"],
                                  default="terminal", help="Output format")
 
+    # ── guard command ─────────────────────────────────────────────────
+    guard_parser = subparsers.add_parser(
+        "guard",
+        help="Scan your machine for AI agent security threats",
+        description="Discovers all AI agents, skills, and MCP servers on your "
+                    "machine and checks them for security issues. "
+                    "No API keys, no accounts, no configuration needed.",
+    )
+    guard_parser.add_argument(
+        "--no-semantic", action="store_true",
+        help="Disable semantic analysis (faster but less accurate)",
+    )
+    guard_parser.add_argument(
+        "--output", "-o", choices=["terminal", "json"],
+        default="terminal", help="Output format (default: terminal)",
+    )
+    guard_parser.add_argument(
+        "--save", type=str, metavar="FILE",
+        help="Save results to JSON file",
+    )
+    guard_parser.add_argument(
+        "--verbose", "-v", action="store_true",
+        help="Show all items including safe ones",
+    )
+
     args = parser.parse_args()
 
     if args.command == "login":
@@ -313,10 +338,158 @@ def main():
         _run_compare(args)
     elif args.command == "watch":
         asyncio.run(_run_watch(args))
+    elif args.command == "guard":
+        _run_guard(args)
     else:
         _print_banner()
         parser.print_help()
         sys.exit(0)
+
+
+def _run_guard(args):
+    """Run the guard command — machine-level security scan."""
+    from agentseal.guard import Guard
+    from agentseal.guard_models import GuardVerdict
+
+    R = "\033[91m"     # Red
+    Y = "\033[93m"     # Yellow
+    G = "\033[92m"     # Green
+    D = "\033[90m"     # Dim
+    C = "\033[96m"     # Cyan
+    B = "\033[1m"      # Bold
+    RST = "\033[0m"    # Reset
+
+    json_mode = getattr(args, "output", None) == "json"
+    verbose = getattr(args, "verbose", False)
+
+    if not json_mode:
+        _print_banner(show_tagline=False)
+
+    def on_progress(phase, detail):
+        if not json_mode:
+            print(f"  {D}{detail}{RST}")
+
+    if not json_mode:
+        print()
+        print(f"  {B}AgentSeal Guard{RST} — Machine Security Scan")
+        print(f"  {'─' * 48}")
+        print()
+
+    guard = Guard(
+        semantic=not getattr(args, "no_semantic", False),
+        verbose=verbose,
+        on_progress=on_progress,
+    )
+    report = guard.run()
+
+    # ── JSON output ────────────────────────────────────────────────
+    if json_mode:
+        print(report.to_json())
+        if getattr(args, "save", None):
+            Path(args.save).write_text(report.to_json(), encoding="utf-8")
+            print(f"Saved to {args.save}", file=sys.stderr)
+        sys.exit(1 if report.has_critical else 0)
+        return
+
+    # ── Terminal output ────────────────────────────────────────────
+    print()
+
+    # Agents installed
+    print(f"  {B}AGENTS INSTALLED{RST}")
+    for agent in report.agents_found:
+        if agent.status == "found":
+            extra = ""
+            if agent.mcp_servers > 0:
+                extra = f" ({agent.mcp_servers} MCP servers)"
+            print(f"  {G}[OK]{RST} {agent.name:<20s} {D}{agent.config_path}{extra}{RST}")
+        elif agent.status == "error":
+            print(f"  {Y}[!!]{RST} {agent.name:<20s} {D}config error{RST}")
+        elif verbose:
+            print(f"  {D}[ - ] {agent.name:<20s} not installed{RST}")
+    print()
+
+    # Skills
+    if report.skill_results:
+        print(f"  {B}SKILLS{RST}")
+        safe_count = 0
+        for sr in report.skill_results:
+            if sr.verdict == GuardVerdict.DANGER:
+                top = sr.top_finding
+                desc = top.title if top else "Malicious"
+                print(f"  {R}[XX]{RST} {sr.name:<25s} {R}MALWARE{RST} — {desc}")
+                if top:
+                    print(f"       {C}-> {top.remediation}{RST}")
+            elif sr.verdict == GuardVerdict.WARNING:
+                top = sr.top_finding
+                desc = top.title if top else "Suspicious"
+                print(f"  {Y}[!!]{RST} {sr.name:<25s} {Y}SUSPICIOUS{RST} — {desc}")
+                if top:
+                    print(f"       {C}-> {top.remediation}{RST}")
+            elif sr.verdict == GuardVerdict.ERROR:
+                top = sr.top_finding
+                desc = top.description if top else "Could not read"
+                print(f"  {D}[??]{RST} {sr.name:<25s} {D}ERROR{RST} — {desc}")
+            else:
+                if verbose:
+                    print(f"  {G}[OK]{RST} {sr.name:<25s} {G}SAFE{RST}")
+                else:
+                    safe_count += 1
+
+        if safe_count > 0 and not verbose:
+            print(f"  {G}[OK]{RST} {safe_count} more safe skills")
+        print()
+
+    # MCP servers
+    if report.mcp_results:
+        print(f"  {B}MCP SERVERS{RST}")
+        for mr in report.mcp_results:
+            if mr.verdict == GuardVerdict.DANGER:
+                top = mr.top_finding
+                desc = top.title if top else "Critical issue"
+                print(f"  {R}[XX]{RST} {mr.name:<25s} {R}DANGER{RST} — {desc}")
+                if top:
+                    print(f"       {C}-> {top.remediation}{RST}")
+            elif mr.verdict == GuardVerdict.WARNING:
+                top = mr.top_finding
+                desc = top.title if top else "Warning"
+                print(f"  {Y}[!!]{RST} {mr.name:<25s} {Y}WARNING{RST} — {desc}")
+                if top:
+                    print(f"       {C}-> {top.remediation}{RST}")
+            else:
+                print(f"  {G}[OK]{RST} {mr.name:<25s} {G}SAFE{RST}")
+        print()
+
+    # Summary
+    print(f"  {'─' * 48}")
+
+    if report.has_critical:
+        print(f"  {R}{B}{report.total_dangers} critical threat(s) found. Action required.{RST}")
+    elif report.total_warnings > 0:
+        print(f"  {Y}{report.total_warnings} warning(s) found. Review recommended.{RST}")
+    else:
+        print(f"  {G}No threats detected. Your machine looks clean.{RST}")
+
+    # Action items
+    actions = report.all_actions
+    if actions:
+        print()
+        print(f"  {B}ACTIONS NEEDED:{RST}")
+        for i, action in enumerate(actions, 1):
+            print(f"  {i}. {action}")
+
+    print()
+    print(f"  {D}Scan completed in {report.duration_seconds:.1f} seconds.{RST}")
+    print()
+
+    # Save if requested
+    if getattr(args, "save", None):
+        Path(args.save).write_text(report.to_json(), encoding="utf-8")
+        print(f"  {D}Results saved to {args.save}{RST}")
+        print()
+
+    # Exit code: 1 if critical threats found
+    if report.has_critical:
+        sys.exit(1)
 
 
 def _resolve_prompt(args, require_url: bool = True) -> str | None:
