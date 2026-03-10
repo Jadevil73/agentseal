@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
+from agentseal.deobfuscate import has_invisible_chars
 from agentseal.guard_models import SkillFinding
 
 
@@ -189,6 +190,8 @@ _PATTERN_RULES: list[tuple[str, str, str, list[str], str, str]] = [
     ),
 ]
 
+# SKILL-011 is detected separately (not via regex) — invisible character detection
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # COMPILED PATTERNS (built once at import time)
@@ -265,6 +268,18 @@ class SkillDetector:
                     seen_codes.add(code)
                     break  # One finding per code is enough
 
+        # SKILL-011: Invisible character detection (before deobfuscation strips them)
+        if has_invisible_chars(content):
+            findings.append(SkillFinding(
+                code="SKILL-011",
+                title="Invisible characters detected",
+                description="This skill contains invisible Unicode characters (tag chars, variation "
+                            "selectors, BiDi controls, or zero-width chars) that can hide malicious instructions.",
+                severity="high",
+                evidence=_find_invisible_evidence(content),
+                remediation="Strip invisible characters and review the decoded content carefully.",
+            ))
+
         return findings
 
     def scan_semantic(self, content: str) -> list[SkillFinding]:
@@ -273,7 +288,9 @@ class SkillDetector:
         Requires agentseal[semantic] to be installed. Returns empty list if not available.
         """
         try:
-            from agentseal.detection.semantic import compute_semantic_similarity
+            from agentseal.detection.semantic import compute_semantic_similarity, is_available
+            if not is_available():
+                return []
         except ImportError:
             return []
 
@@ -339,3 +356,22 @@ def _extract_evidence_line(content: str, match_pos: int) -> str:
     if len(line) > 200:
         line = line[:197] + "..."
     return line
+
+
+# Invisible char categories for evidence reporting
+_INVISIBLE_CATEGORIES = [
+    (re.compile("[\U000e0001-\U000e007f]"), "Unicode Tag Characters (ASCII smuggling)"),
+    (re.compile("[\ufe00-\ufe0f\U000e0100-\U000e01ef]"), "Variation Selectors"),
+    (re.compile("[\u202a-\u202e\u2066-\u2069\u200e\u200f]"), "BiDi Controls"),
+    (re.compile("[\u200b\u200c\u200d\ufeff\u00ad\u2060]"), "Zero-width Characters"),
+]
+
+
+def _find_invisible_evidence(content: str) -> str:
+    """Identify which categories of invisible characters are present."""
+    found = []
+    for pattern, name in _INVISIBLE_CATEGORIES:
+        matches = pattern.findall(content)
+        if matches:
+            found.append(f"{name} ({len(matches)} chars)")
+    return "; ".join(found) if found else "Invisible characters detected"

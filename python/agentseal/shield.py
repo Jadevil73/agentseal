@@ -34,6 +34,8 @@ try:
     _WATCHDOG_AVAILABLE = True
 except ImportError:
     _WATCHDOG_AVAILABLE = False
+    # Provide a stub base class so the module can be imported without watchdog
+    FileSystemEventHandler = object  # type: ignore[misc,assignment]
 
 
 # Colors for terminal output
@@ -221,13 +223,14 @@ class Shield:
         notify: bool = True,
         debounce_seconds: float = 2.0,
         on_event: Optional[ShieldCallback] = None,
+        llm_judge=None,
     ):
         check_watchdog_available()
         self._semantic = semantic
         self._debounce = debounce_seconds
         self._on_event = on_event or (lambda *a: None)
         self._notifier = Notifier(enabled=notify, min_interval=30.0)
-        self._scanner = SkillScanner(semantic=semantic)
+        self._scanner = SkillScanner(semantic=semantic, llm_judge=llm_judge)
         self._mcp_checker = MCPConfigChecker()
         self._baseline_store = BaselineStore()
         self._observer: Optional["Observer"] = None

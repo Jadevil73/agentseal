@@ -216,7 +216,8 @@ class TestMachineDiscoveryEdgeCases:
         with patch("agentseal.machine_discovery._get_well_known_configs", return_value=mock_configs):
             with patch("agentseal.machine_discovery._home", return_value=tmp_path):
                 agents, servers, skills = scan_machine()
-        assert agents[0].status == "not_installed"
+        # Parent dir exists so agent is detected as installed (no config file)
+        assert agents[0].status == "installed_no_config"
 
     def test_mcp_servers_as_array(self, tmp_path):
         """mcpServers as array instead of dict should be handled."""
@@ -237,11 +238,11 @@ class TestMachineDiscoveryEdgeCases:
         assert agents[0].mcp_servers == 0
         assert len(servers) == 0
 
-    def test_17_agents_discovered(self):
-        """We should now support 17 agent types."""
+    def test_26_agents_discovered(self):
+        """We should now support 26 agent types."""
         from agentseal.machine_discovery import _get_well_known_configs
         configs = _get_well_known_configs()
-        assert len(configs) >= 16  # 10 original + 6 new (Trae has no MCP config)
+        assert len(configs) >= 27
 
     def test_cwd_deleted(self, tmp_path):
         """If cwd is deleted, scan should still work."""

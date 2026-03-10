@@ -13,6 +13,11 @@ import unicodedata
 __all__ = [
     "deobfuscate",
     "strip_zero_width",
+    "strip_tag_chars",
+    "strip_variation_selectors",
+    "strip_bidi_controls",
+    "strip_html_comments",
+    "has_invisible_chars",
     "normalize_unicode",
     "decode_base64_blocks",
     "unescape_sequences",
@@ -21,6 +26,26 @@ __all__ = [
 
 # Zero-width and invisible characters to strip.
 _ZERO_WIDTH = re.compile("[\u200b\u200c\u200d\ufeff\u00ad\u2060]")
+
+# Unicode Tag Characters (ASCII smuggling) — U+E0001 to U+E007F
+_TAG_CHARS = re.compile("[\U000e0001-\U000e007f]")
+
+# Variation Selectors — U+FE00-FE0F + U+E0100-E01EF
+_VARIATION_SELECTORS = re.compile("[\ufe00-\ufe0f\U000e0100-\U000e01ef]")
+
+# BiDi Control Characters
+_BIDI_CONTROLS = re.compile("[\u202a-\u202e\u2066-\u2069\u200e\u200f]")
+
+# HTML comments with hidden instructions
+_HTML_COMMENTS = re.compile(r"<!--[\s\S]*?-->")
+
+# Combined invisible character detection pattern (for pre-strip detection)
+_INVISIBLE_CHARS = re.compile(
+    "[\u200b\u200c\u200d\ufeff\u00ad\u2060"
+    "\U000e0001-\U000e007f"
+    "\ufe00-\ufe0f\U000e0100-\U000e01ef"
+    "\u202a-\u202e\u2066-\u2069\u200e\u200f]"
+)
 
 # Base64 block: standalone token of 8+ base64 chars (including padding).
 # We use a non-capturing group approach instead of variable-width lookbehind.
@@ -46,6 +71,31 @@ _CONCAT_SINGLE = re.compile(r"'([^']*?)'\s*\+\s*'([^']*?)'")
 def strip_zero_width(text: str) -> str:
     """Remove zero-width characters: U+200B, U+200C, U+200D, U+FEFF, U+00AD, U+2060."""
     return _ZERO_WIDTH.sub("", text)
+
+
+def strip_tag_chars(text: str) -> str:
+    """Remove Unicode Tag Characters (U+E0001–U+E007F) used in ASCII smuggling."""
+    return _TAG_CHARS.sub("", text)
+
+
+def strip_variation_selectors(text: str) -> str:
+    """Remove Variation Selectors (U+FE00–FE0F, U+E0100–E01EF)."""
+    return _VARIATION_SELECTORS.sub("", text)
+
+
+def strip_bidi_controls(text: str) -> str:
+    """Remove BiDi control characters that can hide text direction."""
+    return _BIDI_CONTROLS.sub("", text)
+
+
+def strip_html_comments(text: str) -> str:
+    """Remove HTML comments that may contain hidden instructions."""
+    return _HTML_COMMENTS.sub("", text)
+
+
+def has_invisible_chars(text: str) -> bool:
+    """Check if text contains any invisible/obfuscation characters (before stripping)."""
+    return bool(_INVISIBLE_CHARS.search(text))
 
 
 def normalize_unicode(text: str) -> str:
@@ -140,13 +190,21 @@ def deobfuscate(text: str) -> str:
 
     Returns cleaned text for regex pattern matching.
     Transforms applied in order:
-    1. strip_zero_width - Remove invisible unicode characters
-    2. normalize_unicode - NFKC normalization (homoglyphs -> ASCII)
-    3. decode_base64_blocks - Find and decode inline base64 strings
-    4. unescape_sequences - Convert \\x and \\u escapes to characters
-    5. expand_string_concat - Join adjacent string literals
+    1. strip_zero_width - Remove zero-width unicode characters
+    2. strip_tag_chars - Remove Unicode Tag Characters (ASCII smuggling)
+    3. strip_variation_selectors - Remove Variation Selectors
+    4. strip_bidi_controls - Remove BiDi control characters
+    5. strip_html_comments - Remove HTML comments with hidden instructions
+    6. normalize_unicode - NFKC normalization (homoglyphs -> ASCII)
+    7. decode_base64_blocks - Find and decode inline base64 strings
+    8. unescape_sequences - Convert \\x and \\u escapes to characters
+    9. expand_string_concat - Join adjacent string literals
     """
     text = strip_zero_width(text)
+    text = strip_tag_chars(text)
+    text = strip_variation_selectors(text)
+    text = strip_bidi_controls(text)
+    text = strip_html_comments(text)
     text = normalize_unicode(text)
     text = decode_base64_blocks(text)
     text = unescape_sequences(text)

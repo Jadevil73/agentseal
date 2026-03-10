@@ -19,6 +19,7 @@ import yaml
 
 from agentseal.blocklist import Blocklist
 from agentseal.deobfuscate import deobfuscate
+from agentseal.detection.dataflow import DataflowAnalyzer
 from agentseal.detection.skill_detector import SkillDetector
 from agentseal.guard_models import GuardVerdict, SkillFinding, SkillResult
 
@@ -29,14 +30,18 @@ class SkillScanner:
     def __init__(self, semantic: bool = True, llm_judge=None):
         self._detector = SkillDetector()
         self._blocklist = Blocklist()
+        self._dataflow = DataflowAnalyzer()
         self._llm_judge = llm_judge
 
         # Check if semantic analysis is available
         self._semantic_available = False
         if semantic:
             try:
-                from agentseal.detection.semantic import compute_semantic_similarity  # noqa: F401
-                self._semantic_available = True
+                from agentseal.detection.semantic import is_available
+                if is_available():
+                    self._semantic_available = True
+                else:
+                    raise ImportError("semantic deps not installed")
             except ImportError:
                 print(
                     "  \033[90mSemantic detection not available. "
@@ -119,6 +124,21 @@ class SkillScanner:
                 if (f.code, f.evidence) not in existing:
                     findings.append(f)
 
+        # Layer 2b: Dataflow analysis (Python/JS files only)
+        suffix = path.suffix.lower()
+        if suffix in (".py", ".js", ".ts", ".mjs", ".cjs", ".jsx", ".tsx"):
+            df_findings = self._dataflow.analyze(content, filename=str(path))
+            for df in df_findings:
+                findings.append(SkillFinding(
+                    code="SKILL-010",
+                    title="Credential-to-network dataflow",
+                    description=f"Data flows from {df.source_type} (line {df.source_line}) "
+                                f"to {df.sink_type} (line {df.sink_line}).",
+                    severity="critical",
+                    evidence=f"Source: {df.source_code} → Sink: {df.sink_code}",
+                    remediation="Review this data flow — sensitive data reaches a network sink.",
+                ))
+
         # Layer 3: Semantic analysis (if available and no critical patterns found)
         if self._semantic_available:
             semantic_findings = self._detector.scan_semantic(content)
@@ -127,6 +147,18 @@ class SkillScanner:
             for sf in semantic_findings:
                 if sf.code not in existing_codes:
                     findings.append(sf)
+
+        # Layer 4: LLM judge (if configured)
+        if self._llm_judge is not None:
+            try:
+                import asyncio
+                llm_findings, _ = asyncio.run(self.analyze_with_llm(content, str(path)))
+                existing_codes = {f.code for f in findings}
+                for lf in llm_findings:
+                    if lf.code not in existing_codes:
+                        findings.append(lf)
+            except Exception:
+                pass  # LLM judge is best-effort — never block scanning
 
         verdict = _compute_verdict(findings)
 

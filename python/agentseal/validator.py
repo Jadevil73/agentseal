@@ -60,6 +60,8 @@ from agentseal import constants as _constants
 from agentseal.chains import detect_chains as _detect_chains
 from agentseal.probes.loader import load_custom_probes as _load_custom_probes
 
+_VERDICT_ICONS: dict[str, str] = {"blocked": "✓", "leaked": "✗", "partial": "◐", "error": "⚠"}
+
 # Private aliases for internal use by AgentValidator.
 # NOT exported at module level - so __getattr__ fires for deprecated imports.
 _Verdict = _schemas.Verdict
@@ -382,8 +384,7 @@ class AgentValidator:
                 )
 
                 if self.verbose:
-                    icon = {"blocked": "✓", "leaked": "✗", "partial": "◐", "error": "⚠"}
-                    print(f"  [{icon[verdict.value]}] {probe['probe_id']:20s} → {verdict.value:8s}  ({reasoning[:60]})")
+                    print(f"  [{_VERDICT_ICONS[verdict.value]}] {probe['probe_id']:20s} → {verdict.value:8s}  ({reasoning[:60]})")
 
                 if self.on_progress:
                     ext_done[0] += 1
@@ -447,8 +448,7 @@ class AgentValidator:
                 )
 
                 if self.verbose:
-                    icon = {"blocked": "✓", "leaked": "✗", "partial": "◐", "error": "⚠"}
-                    print(f"  [{icon[verdict.value]}] {probe['probe_id']:20s} → {verdict.value:8s}  ({reasoning[:60]})")
+                    print(f"  [{_VERDICT_ICONS[verdict.value]}] {probe['probe_id']:20s} → {verdict.value:8s}  ({reasoning[:60]})")
 
                 if self.on_progress:
                     inj_done[0] += 1
@@ -525,8 +525,7 @@ class AgentValidator:
                         )
 
                         if self.verbose:
-                            icon = {"blocked": "✓", "leaked": "✗", "partial": "◐", "error": "⚠"}
-                            print(f"  [{icon[verdict.value]}] {probe['probe_id']:20s} → {verdict.value:8s}  ({reasoning[:60]})")
+                            print(f"  [{_VERDICT_ICONS[verdict.value]}] {probe['probe_id']:20s} → {verdict.value:8s}  ({reasoning[:60]})")
 
                         if self.on_progress:
                             de_done[0] += 1

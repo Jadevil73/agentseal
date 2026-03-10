@@ -43,7 +43,7 @@ from agentseal.probes.loader import load_custom_probes, load_all_custom_probes
 # Shield is only available when watchdog is installed
 try:
     from agentseal.shield import Shield
-except ImportError:
+except (ImportError, NameError):
     Shield = None  # type: ignore[assignment,misc]
 
 # LLM judge is only available when optional deps are installed
@@ -53,7 +53,7 @@ except ImportError:
     LLMJudge = None  # type: ignore[assignment,misc]
     LLMJudgeResult = None  # type: ignore[assignment,misc]
 
-__version__ = "0.5.2"
+__version__ = "0.6.1"
 __all__ = [
     "AgentValidator",
     "ScanReport",

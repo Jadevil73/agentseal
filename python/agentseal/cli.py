@@ -100,7 +100,7 @@ def _print_banner(show_tagline=True):
     from agentseal import __version__
 
     # Gradient: cyan → blue → purple → pink
-    c = [
+    GRADIENT_COLORS = [
         "\033[38;5;51m",   # A
         "\033[38;5;45m",   # G
         "\033[38;5;39m",   # E
@@ -111,25 +111,26 @@ def _print_banner(show_tagline=True):
         "\033[38;5;171m",  # A
         "\033[38;5;207m",  # L
     ]
-    R = "\033[0m"
-    D = "\033[90m"
+    RESET = "\033[0m"
+    DIM = "\033[90m"
 
     # Large 2x block letters
+    c = GRADIENT_COLORS
     rows = [
-        f"   {c[0]}  ██████╗  {c[1]} ██████╗ {c[2]}███████╗{c[3]}███╗   ██╗{c[4]}████████╗{c[5]}███████╗{c[6]}███████╗{c[7]} █████╗ {c[8]}██╗     {R}",
-        f"   {c[0]} ██╔══██╗ {c[1]}██╔════╝ {c[2]}██╔════╝{c[3]}████╗  ██║{c[4]}╚══██╔══╝{c[5]}██╔════╝{c[6]}██╔════╝{c[7]}██╔══██╗{c[8]}██║     {R}",
-        f"   {c[0]} ███████║ {c[1]}██║  ███╗{c[2]}█████╗  {c[3]}██╔██╗ ██║{c[4]}   ██║   {c[5]}███████╗{c[6]}█████╗  {c[7]}███████║{c[8]}██║     {R}",
-        f"   {c[0]} ██╔══██║ {c[1]}██║   ██║{c[2]}██╔══╝  {c[3]}██║╚██╗██║{c[4]}   ██║   {c[5]}╚════██║{c[6]}██╔══╝  {c[7]}██╔══██║{c[8]}██║     {R}",
-        f"   {c[0]} ██║  ██║ {c[1]}╚██████╔╝{c[2]}███████╗{c[3]}██║ ╚████║{c[4]}   ██║   {c[5]}███████║{c[6]}███████╗{c[7]}██║  ██║{c[8]}███████╗{R}",
-        f"   {c[0]} ╚═╝  ╚═╝ {c[1]} ╚═════╝ {c[2]}╚══════╝{c[3]}╚═╝  ╚═══╝{c[4]}   ╚═╝   {c[5]}╚══════╝{c[6]}╚══════╝{c[7]}╚═╝  ╚═╝{c[8]}╚══════╝{R}",
+        f"   {c[0]}  ██████╗  {c[1]} ██████╗ {c[2]}███████╗{c[3]}███╗   ██╗{c[4]}████████╗{c[5]}███████╗{c[6]}███████╗{c[7]} █████╗ {c[8]}██╗     {RESET}",
+        f"   {c[0]} ██╔══██╗ {c[1]}██╔════╝ {c[2]}██╔════╝{c[3]}████╗  ██║{c[4]}╚══██╔══╝{c[5]}██╔════╝{c[6]}██╔════╝{c[7]}██╔══██╗{c[8]}██║     {RESET}",
+        f"   {c[0]} ███████║ {c[1]}██║  ███╗{c[2]}█████╗  {c[3]}██╔██╗ ██║{c[4]}   ██║   {c[5]}███████╗{c[6]}█████╗  {c[7]}███████║{c[8]}██║     {RESET}",
+        f"   {c[0]} ██╔══██║ {c[1]}██║   ██║{c[2]}██╔══╝  {c[3]}██║╚██╗██║{c[4]}   ██║   {c[5]}╚════██║{c[6]}██╔══╝  {c[7]}██╔══██║{c[8]}██║     {RESET}",
+        f"   {c[0]} ██║  ██║ {c[1]}╚██████╔╝{c[2]}███████╗{c[3]}██║ ╚████║{c[4]}   ██║   {c[5]}███████║{c[6]}███████╗{c[7]}██║  ██║{c[8]}███████╗{RESET}",
+        f"   {c[0]} ╚═╝  ╚═╝ {c[1]} ╚═════╝ {c[2]}╚══════╝{c[3]}╚═╝  ╚═══╝{c[4]}   ╚═╝   {c[5]}╚══════╝{c[6]}╚══════╝{c[7]}╚═╝  ╚═╝{c[8]}╚══════╝{RESET}",
     ]
 
     print()
     for row in rows:
         print(row)
-    print(f"   {D}v{__version__}{R}")
+    print(f"   {DIM}v{__version__}{RESET}")
     if show_tagline:
-        print(f"{D}                  Security Validator for AI Agents{R}")
+        print(f"{DIM}                  Security Validator for AI Agents{RESET}")
     print()
 
 
@@ -160,7 +161,7 @@ def main():
     # LLM connection
     scan_parser.add_argument("--api-key", type=str, default=None,
                              help="API key (or set OPENAI_API_KEY / ANTHROPIC_API_KEY env)")
-    scan_parser.add_argument("--ollama-url", type=str, default="http://localhost:11434",
+    scan_parser.add_argument("--ollama-url", type=str, default=None,
                              help="Ollama base URL (default: http://localhost:11434)")
     scan_parser.add_argument("--litellm-url", type=str, default=None,
                              help="LiteLLM proxy URL (e.g. http://localhost:4000)")
@@ -271,7 +272,7 @@ def main():
                                help="Model to test against")
     watch_parser.add_argument("--api-key", type=str, default=None,
                                help="API key (or set OPENAI_API_KEY / ANTHROPIC_API_KEY env)")
-    watch_parser.add_argument("--ollama-url", type=str, default="http://localhost:11434",
+    watch_parser.add_argument("--ollama-url", type=str, default=None,
                                help="Ollama base URL (default: http://localhost:11434)")
     watch_parser.add_argument("--litellm-url", type=str, default=None,
                                help="LiteLLM proxy URL")
@@ -326,11 +327,15 @@ def main():
                     "No API keys, no accounts, no configuration needed.",
     )
     guard_parser.add_argument(
+        "path", nargs="?", default=None,
+        help="Scan only this directory (instead of whole machine)",
+    )
+    guard_parser.add_argument(
         "--no-semantic", action="store_true",
         help="Disable semantic analysis (faster but less accurate)",
     )
     guard_parser.add_argument(
-        "--output", "-o", choices=["terminal", "json"],
+        "--output", "-o", choices=["terminal", "json", "sarif", "html"],
         default="terminal", help="Output format (default: terminal)",
     )
     guard_parser.add_argument(
@@ -354,8 +359,8 @@ def main():
         help="API key for LLM judge",
     )
     guard_parser.add_argument(
-        "--ollama-url", type=str, default="http://localhost:11434",
-        help="Ollama base URL for LLM judge",
+        "--ollama-url", type=str, default=None,
+        help="Ollama base URL for LLM judge (default: http://localhost:11434)",
     )
     guard_parser.add_argument(
         "--litellm-url", type=str, default=None,
@@ -364,6 +369,67 @@ def main():
     guard_parser.add_argument(
         "--llm-all", action="store_true",
         help="Use LLM judge on all skills (not just suspicious ones)",
+    )
+    guard_parser.add_argument(
+        "--connect", action="store_true",
+        help="Also run runtime MCP scanning (connect to servers, analyze tools)",
+    )
+    guard_parser.add_argument(
+        "--timeout", type=float, default=30.0,
+        help="Per-server connection timeout in seconds (default: 30)",
+    )
+    guard_parser.add_argument(
+        "--concurrency", type=int, default=3,
+        help="Max parallel MCP connections (default: 3)",
+    )
+
+    # ── scan-mcp command ─────────────────────────────────────────────
+    scanmcp_parser = subparsers.add_parser(
+        "scan-mcp",
+        help="Runtime MCP server scanner — connect, analyze, score",
+        description="Connects to MCP servers, analyzes tool definitions for "
+                    "security issues, detects toxic flows, checks baselines "
+                    "for rug pulls, and computes trust scores.",
+    )
+    scanmcp_parser.add_argument(
+        "--server", type=str, default=None,
+        help="Scan only this server (by name from config)",
+    )
+    scanmcp_parser.add_argument(
+        "--url", type=str, default=None,
+        help="Scan a remote HTTP/SSE endpoint",
+    )
+    scanmcp_parser.add_argument(
+        "--timeout", type=float, default=30.0,
+        help="Per-server connection timeout in seconds (default: 30)",
+    )
+    scanmcp_parser.add_argument(
+        "--concurrency", type=int, default=3,
+        help="Max parallel MCP connections (default: 3)",
+    )
+    scanmcp_parser.add_argument(
+        "--output", "-o", choices=["terminal", "json"],
+        default="terminal", help="Output format (default: terminal)",
+    )
+    scanmcp_parser.add_argument(
+        "--save", type=str, metavar="FILE",
+        help="Save JSON report to file",
+    )
+    scanmcp_parser.add_argument(
+        "--min-score", type=int, default=None,
+        help="Exit code 1 if any server scores below this threshold",
+    )
+    scanmcp_parser.add_argument(
+        "--verbose", "-v", action="store_true",
+        help="Show individual tool findings",
+    )
+    scanmcp_parser.add_argument(
+        "--yes", "-y", action="store_true",
+        help="Skip confirmation prompts (for CI)",
+    )
+    scanmcp_parser.add_argument(
+        "--reset-baselines", action="store_true",
+        help="Reset all MCP server baselines before scanning",
     )
 
     # ── shield command ───────────────────────────────────────────────
@@ -404,8 +470,8 @@ def main():
         help="API key for LLM judge",
     )
     shield_parser.add_argument(
-        "--ollama-url", type=str, default="http://localhost:11434",
-        help="Ollama base URL for LLM judge",
+        "--ollama-url", type=str, default=None,
+        help="Ollama base URL for LLM judge (default: http://localhost:11434)",
     )
     shield_parser.add_argument(
         "--litellm-url", type=str, default=None,
@@ -438,6 +504,42 @@ def main():
     # ── profiles command ─────────────────────────────────────────────
     profiles_parser = subparsers.add_parser("profiles", help="List available scan profiles")
 
+    # ── registry command ────────────────────────────────────────────
+    registry_parser = subparsers.add_parser(
+        "registry",
+        help="Manage the MCP server registry",
+        description="View and update the known MCP server registry. "
+                    "Ships with 50 core servers; fetch more from AgentSeal API.",
+    )
+    registry_parser.add_argument(
+        "action", choices=["info", "update", "list"],
+        help="info: show registry stats, update: fetch from API, list: show all servers",
+    )
+    registry_parser.add_argument(
+        "--api-url", type=str, default=None,
+        help="Custom API URL for registry updates",
+    )
+
+    # ── config command ─────────────────────────────────────────────
+    config_parser = subparsers.add_parser(
+        "config",
+        help="Manage local configuration (API keys, LLM settings)",
+        description="Set up API keys and LLM preferences locally. "
+                    "Stored in ~/.agentseal/config.json (owner-only permissions).",
+    )
+    config_parser.add_argument(
+        "action", choices=["set", "show", "remove", "keys", "setup"],
+        help="set: save a value, show: display config, remove: delete a key, keys: list valid keys, setup: LLM provider guide",
+    )
+    config_parser.add_argument(
+        "key", nargs="?", default=None,
+        help="Config key (e.g. model, api-key, ollama-url)",
+    )
+    config_parser.add_argument(
+        "value", nargs="?", default=None,
+        help="Value to set",
+    )
+
     args = parser.parse_args()
 
     if args.command == "login":
@@ -452,16 +554,359 @@ def main():
         asyncio.run(_run_watch(args))
     elif args.command == "guard":
         _run_guard(args)
+    elif args.command == "scan-mcp":
+        _run_scan_mcp(args)
     elif args.command == "shield":
         _run_shield(args)
     elif args.command == "fix":
         _run_fix(args)
     elif args.command == "profiles":
         print(list_profiles())
+    elif args.command == "registry":
+        _run_registry(args)
+    elif args.command == "config":
+        _run_config(args)
     else:
         _print_banner()
         parser.print_help()
         sys.exit(0)
+
+
+def _finding_source(finding) -> str:
+    """Map finding code prefix to human-readable detection layer name."""
+    code = getattr(finding, "code", "") or ""
+    if code.startswith("LLM-"):
+        return "LLM Judge (AI analysis)"
+    if code.startswith("SKILL-SEM"):
+        return "Semantic Detection (embedding similarity)"
+    if code.startswith("SKILL-BL"):
+        return "Blocklist (known malware hash)"
+    if code.startswith("SKILL-"):
+        return "Pattern Detection (regex)"
+    if code.startswith("MCP-"):
+        return "MCP Config Checker"
+    if code.startswith("MCPR-"):
+        return "MCP Runtime Analyzer"
+    return ""
+
+
+def _count_severities(report) -> dict[str, int]:
+    """Count findings by severity across all report sections."""
+    counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    for sr in report.skill_results:
+        for f in sr.findings:
+            if f.severity in counts:
+                counts[f.severity] += 1
+    for mr in report.mcp_results:
+        for f in mr.findings:
+            if f.severity in counts:
+                counts[f.severity] += 1
+    for rr in report.mcp_runtime_results:
+        for f in rr.findings:
+            if f.severity in counts:
+                counts[f.severity] += 1
+    return counts
+
+
+def _print_severity_bar(counts: dict[str, int], R, Y, C, D, RST):
+    """Print a visual severity breakdown bar."""
+    parts = []
+    for sev, color in [("critical", R), ("high", Y), ("medium", C), ("low", D)]:
+        n = counts.get(sev, 0)
+        if n > 0:
+            bar = "█" * min(n, 20)
+            parts.append(f"  {color}{sev.upper()} {bar} {n}{RST}")
+    if parts:
+        for part in parts:
+            print(part)
+    else:
+        print(f"  {D}No findings{RST}")
+
+
+# Consequence-first labels for critical findings (GAP 11)
+_CONSEQUENCE_MAP: dict[str, str] = {
+    "SKILL-001": "CREDENTIAL THEFT",
+    "SKILL-002": "DATA EXFILTRATION",
+    "SKILL-003": "REMOTE CODE EXECUTION",
+    "SKILL-004": "BACKDOOR / REVERSE SHELL",
+    "SKILL-010": "CREDENTIAL LEAK TO NETWORK",
+    "MCP-001": "CREDENTIAL EXPOSURE",
+    "MCP-006": "MAN-IN-THE-MIDDLE RISK",
+    "MCP-007": "SUPPLY CHAIN ATTACK",
+    "MCP-008": "ARBITRARY CODE EXECUTION",
+    "MCP-CVE": "KNOWN VULNERABILITY",
+}
+
+
+def _guard_to_html(report) -> str:
+    """Generate self-contained HTML report for guard results (GAP 12)."""
+    from agentseal import __version__
+    from agentseal.guard_models import GuardVerdict
+
+    sev_colors = {
+        "critical": "#ef4444", "high": "#f59e0b",
+        "medium": "#3b82f6", "low": "#6b7280",
+    }
+    verdict_colors = {
+        GuardVerdict.DANGER: "#ef4444",
+        GuardVerdict.WARNING: "#f59e0b",
+        GuardVerdict.SAFE: "#22c55e",
+        GuardVerdict.ERROR: "#6b7280",
+    }
+
+    # Status color
+    if report.has_critical:
+        status_color = "#ef4444"
+        status_text = f"{report.total_dangers} Critical Threat(s)"
+    elif report.total_warnings > 0:
+        status_color = "#f59e0b"
+        status_text = f"{report.total_warnings} Warning(s)"
+    else:
+        status_color = "#22c55e"
+        status_text = "Clean"
+
+    def _esc(s: str) -> str:
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+    skills_rows = ""
+    for sr in report.skill_results:
+        vc = verdict_colors.get(sr.verdict, "#6b7280")
+        top = sr.top_finding
+        desc = _esc(top.title) if top else ""
+        evidence = _esc(top.evidence[:120]) if top and top.evidence else ""
+        remediation = _esc(top.remediation) if top else ""
+        skills_rows += (
+            f'<tr><td>{_esc(sr.name)}</td>'
+            f'<td><span style="color:{vc};font-weight:bold">{sr.verdict.value.upper()}</span></td>'
+            f'<td>{desc}</td><td style="font-size:0.85em">{evidence}</td>'
+            f'<td style="font-size:0.85em">{remediation}</td></tr>\n'
+        )
+
+    mcp_rows = ""
+    for mr in report.mcp_results:
+        vc = verdict_colors.get(mr.verdict, "#6b7280")
+        top = mr.top_finding
+        desc = _esc(top.title) if top else ""
+        remediation = _esc(top.remediation) if top else ""
+        mcp_rows += (
+            f'<tr><td>{_esc(mr.name)}</td>'
+            f'<td><span style="color:{vc};font-weight:bold">{mr.verdict.value.upper()}</span></td>'
+            f'<td>{desc}</td><td style="font-size:0.85em">{remediation}</td></tr>\n'
+        )
+
+    toxic_rows = ""
+    for flow in report.toxic_flows:
+        color = "#ef4444" if flow.risk_level == "high" else "#f59e0b"
+        toxic_rows += (
+            f'<tr><td><span style="color:{color}">{flow.risk_level.upper()}</span></td>'
+            f'<td>{_esc(flow.title)}</td>'
+            f'<td>{_esc(", ".join(flow.servers_involved))}</td>'
+            f'<td style="font-size:0.85em">{_esc(flow.remediation)}</td></tr>\n'
+        )
+
+    baseline_rows = ""
+    for change in report.baseline_changes:
+        baseline_rows += (
+            f'<tr><td>{_esc(change.server_name)}</td>'
+            f'<td>{_esc(change.change_type)}</td>'
+            f'<td>{_esc(change.detail)}</td></tr>\n'
+        )
+
+    html = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentSeal Guard Report</title>
+<style>
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: #0f172a; color: #e2e8f0; margin: 0; padding: 2rem; }}
+  .container {{ max-width: 1100px; margin: 0 auto; }}
+  h1 {{ color: #f8fafc; margin-bottom: 0.25rem; }}
+  h2 {{ color: #94a3b8; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; margin-top: 2rem; }}
+  .summary {{ background: #1e293b; border-radius: 8px; padding: 1.5rem; margin: 1.5rem 0;
+              border-left: 4px solid {status_color}; }}
+  .summary .status {{ font-size: 1.4rem; font-weight: bold; color: {status_color}; }}
+  .summary .meta {{ color: #94a3b8; font-size: 0.9rem; margin-top: 0.5rem; }}
+  table {{ width: 100%; border-collapse: collapse; margin: 1rem 0; }}
+  th {{ background: #1e293b; color: #94a3b8; text-align: left; padding: 0.75rem; font-size: 0.85rem;
+       text-transform: uppercase; letter-spacing: 0.05em; }}
+  td {{ padding: 0.75rem; border-bottom: 1px solid #1e293b; }}
+  tr:hover {{ background: #1e293b40; }}
+  .footer {{ color: #475569; font-size: 0.8rem; text-align: center; margin-top: 3rem;
+             padding-top: 1rem; border-top: 1px solid #1e293b; }}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>AgentSeal Guard Report</h1>
+  <div class="summary">
+    <div class="status">{status_text}</div>
+    <div class="meta">
+      Scanned at {_esc(report.timestamp)} &middot; Duration: {report.duration_seconds:.1f}s &middot;
+      {len(report.skill_results)} skills &middot; {len(report.mcp_results)} MCP servers
+    </div>
+  </div>
+'''
+    if skills_rows:
+        html += f'''
+  <h2>Skills</h2>
+  <table>
+    <tr><th>Name</th><th>Verdict</th><th>Finding</th><th>Evidence</th><th>Remediation</th></tr>
+    {skills_rows}
+  </table>
+'''
+    if mcp_rows:
+        html += f'''
+  <h2>MCP Servers</h2>
+  <table>
+    <tr><th>Name</th><th>Verdict</th><th>Finding</th><th>Remediation</th></tr>
+    {mcp_rows}
+  </table>
+'''
+    if toxic_rows:
+        html += f'''
+  <h2>Toxic Flows</h2>
+  <table>
+    <tr><th>Risk</th><th>Title</th><th>Servers</th><th>Remediation</th></tr>
+    {toxic_rows}
+  </table>
+'''
+    if baseline_rows:
+        html += f'''
+  <h2>Baseline Changes</h2>
+  <table>
+    <tr><th>Server</th><th>Change</th><th>Detail</th></tr>
+    {baseline_rows}
+  </table>
+'''
+    html += f'''
+  <div class="footer">Generated by AgentSeal v{__version__} &middot; agentseal.org</div>
+</div>
+</body>
+</html>'''
+    return html
+
+
+def _run_config(args):
+    """Manage local configuration."""
+    from agentseal.config import config_set, config_show, config_remove, config_show_all_keys
+
+    G = "\033[92m"
+    Y = "\033[93m"
+    D = "\033[90m"
+    B = "\033[1m"
+    C = "\033[96m"
+    RST = "\033[0m"
+
+    if args.action == "set":
+        if not args.key or not args.value:
+            print(f"  {Y}Usage: agentseal config set <key> <value>{RST}")
+            print(f"  Run 'agentseal config keys' to see valid keys")
+            return
+        msg = config_set(args.key, args.value)
+        print(f"  {G}{msg}{RST}")
+
+    elif args.action == "show":
+        config = config_show()
+        if not config:
+            print(f"\n  {D}No configuration set.{RST}")
+            print(f"  {D}Run 'agentseal config keys' to see available options.{RST}")
+            print(f"  {D}Example: agentseal config set model ollama/qwen3.5:cloud{RST}\n")
+            return
+        print(f"\n  {B}AgentSeal Configuration{RST}")
+        print(f"  {'─' * 40}")
+        for key, value in sorted(config.items()):
+            print(f"  {key:<20s} {G}{value}{RST}")
+        print(f"\n  {D}Stored in: ~/.agentseal/config.json{RST}\n")
+
+    elif args.action == "remove":
+        if not args.key:
+            print(f"  {Y}Usage: agentseal config remove <key>{RST}")
+            return
+        msg = config_remove(args.key)
+        print(f"  {G}{msg}{RST}")
+
+    elif args.action == "keys":
+        all_keys = config_show_all_keys()
+        print(f"\n  {B}Available Config Keys{RST}")
+        print(f"  {'─' * 50}")
+        for key, desc in sorted(all_keys.items()):
+            print(f"  {C}{key:<20s}{RST} {desc}")
+        print(f"\n  {D}Example: agentseal config set model ollama/qwen3.5:cloud{RST}")
+        print(f"  {D}Example: agentseal config set api-key sk-ant-xxx{RST}")
+        print(f"  {D}Run 'agentseal config setup' for full LLM provider guide{RST}\n")
+
+    elif args.action == "setup":
+        from agentseal.config import get_setup_guide
+        print(get_setup_guide())
+
+
+def _run_registry(args):
+    """Manage the MCP server registry."""
+    from agentseal.mcp_registry import MCPRegistry
+
+    R = "\033[91m"
+    Y = "\033[93m"
+    G = "\033[92m"
+    D = "\033[90m"
+    B = "\033[1m"
+    C = "\033[96m"
+    RST = "\033[0m"
+
+    registry = MCPRegistry()
+
+    if args.action == "info":
+        print(f"\n  {B}MCP Server Registry{RST}")
+        print(f"  {'─' * 40}")
+        print(f"  Core servers (built-in):  {registry.core_count}")
+        print(f"  Total servers loaded:     {registry.count}")
+        cached = Path.home() / ".agentseal" / "mcp_registry.json"
+        if cached.is_file():
+            import datetime
+            mtime = datetime.datetime.fromtimestamp(cached.stat().st_mtime)
+            print(f"  Extended cache:           {cached}")
+            print(f"  Last updated:             {mtime.strftime('%Y-%m-%d %H:%M')}")
+        else:
+            print(f"  Extended cache:           {D}not fetched{RST}")
+            print(f"  {D}Run 'agentseal registry update' to fetch more servers{RST}")
+        print()
+
+    elif args.action == "update":
+        print(f"\n  Fetching registry from AgentSeal API...")
+        count, msg = registry.update_from_api(api_url=getattr(args, "api_url", None))
+        if count > 0:
+            print(f"  {G}{msg}{RST}")
+        else:
+            print(f"  {Y}{msg}{RST}")
+        print(f"  Total servers now: {registry.count}")
+        print()
+
+    elif args.action == "list":
+        risk_colors = {"critical": R, "high": Y, "medium": C, "low": G, "unknown": D}
+        # Group by risk level
+        by_risk: dict[str, list] = {"critical": [], "high": [], "medium": [], "low": []}
+        seen = set()
+        for entry in registry.export_core():
+            name = entry["name"]
+            if name in seen:
+                continue
+            seen.add(name)
+            rl = entry.get("risk_level", "unknown")
+            if rl in by_risk:
+                by_risk[rl].append(entry)
+
+        print(f"\n  {B}MCP Server Registry — {registry.count} servers{RST}")
+        print(f"  {'─' * 50}")
+        for risk_level in ["critical", "high", "medium", "low"]:
+            servers = by_risk[risk_level]
+            if not servers:
+                continue
+            color = risk_colors.get(risk_level, D)
+            print(f"\n  {color}{B}{risk_level.upper()}{RST} ({len(servers)})")
+            for s in sorted(servers, key=lambda x: x["name"]):
+                print(f"    {color}●{RST} {s['name']:<25s} {D}{s['description'][:50]}{RST}")
+        print()
 
 
 def _run_guard(args):
@@ -488,36 +933,56 @@ def _run_guard(args):
             print()
 
     json_mode = getattr(args, "output", None) == "json"
+    structured_output = getattr(args, "output", None) in ("json", "sarif", "html")
     verbose = getattr(args, "verbose", False)
 
-    if not json_mode:
+    if not structured_output:
         _print_banner(show_tagline=False)
 
     def on_progress(phase, detail):
-        if not json_mode:
+        if not structured_output:
             print(f"  {D}{detail}{RST}")
 
-    if not json_mode:
+    if not structured_output:
         print()
         print(f"  {B}AgentSeal Guard{RST} — Machine Security Scan")
         print(f"  {'─' * 48}")
         print()
 
     llm_judge = None
-    if getattr(args, "model", None):
+    # CLI flags take precedence, then fall back to saved config, then env vars
+    from agentseal.config import get_llm_config
+    saved = get_llm_config()
+    model = getattr(args, "model", None) or saved.get("model")
+    api_key = getattr(args, "api_key", None) or saved.get("api_key")
+    # Resolve base_url: CLI --litellm-url > CLI --ollama-url > saved config
+    base_url = getattr(args, "litellm_url", None)
+    if not base_url:
+        cli_ollama = getattr(args, "ollama_url", None)
+        if cli_ollama and cli_ollama != "http://localhost:11434":
+            # User explicitly passed --ollama-url (not the argparse default)
+            base_url = cli_ollama.rstrip("/") + "/v1"
+        else:
+            base_url = saved.get("litellm_url")
+            if not base_url and saved.get("ollama_url"):
+                base_url = saved["ollama_url"].rstrip("/") + "/v1"
+    if model:
         from agentseal.llm_judge import LLMJudge
         llm_judge = LLMJudge(
-            model=args.model,
-            api_key=getattr(args, "api_key", None),
-            ollama_url=getattr(args, "ollama_url", None),
-            litellm_url=getattr(args, "litellm_url", None),
-            scan_all=getattr(args, "llm_all", False),
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
         )
 
+    scan_path = getattr(args, "path", None)
     guard = Guard(
         semantic=not getattr(args, "no_semantic", False),
         verbose=verbose,
         on_progress=on_progress,
+        connect=getattr(args, "connect", False),
+        timeout=getattr(args, "timeout", 30.0),
+        concurrency=getattr(args, "concurrency", 3),
+        scan_path=scan_path,
         **({"llm_judge": llm_judge} if llm_judge else {}),
     )
     report = guard.run()
@@ -537,6 +1002,27 @@ def _run_guard(args):
         sys.exit(1 if report.has_critical else 0)
         return
 
+    # ── SARIF output ──────────────────────────────────────────────
+    if getattr(args, "output", None) == "sarif":
+        sarif_data = report.to_sarif()
+        sarif_json = json.dumps(sarif_data, indent=2)
+        print(sarif_json)
+        if getattr(args, "save", None):
+            Path(args.save).write_text(sarif_json, encoding="utf-8")
+            print(f"Saved to {args.save}", file=sys.stderr)
+        sys.exit(1 if report.has_critical else 0)
+        return
+
+    # ── HTML output ───────────────────────────────────────────────
+    if getattr(args, "output", None) == "html":
+        html = _guard_to_html(report)
+        print(html)
+        if getattr(args, "save", None):
+            Path(args.save).write_text(html, encoding="utf-8")
+            print(f"Saved to {args.save}", file=sys.stderr)
+        sys.exit(1 if report.has_critical else 0)
+        return
+
     # ── Terminal output ────────────────────────────────────────────
     print()
 
@@ -548,6 +1034,8 @@ def _run_guard(args):
             if agent.mcp_servers > 0:
                 extra = f" ({agent.mcp_servers} MCP servers)"
             print(f"  {G}[OK]{RST} {agent.name:<20s} {D}{agent.config_path}{extra}{RST}")
+        elif agent.status == "installed_no_config":
+            print(f"  {D}[OK]{RST} {agent.name:<20s} {D}installed (no config){RST}")
         elif agent.status == "error":
             print(f"  {Y}[!!]{RST} {agent.name:<20s} {D}config error{RST}")
         elif verbose:
@@ -562,13 +1050,23 @@ def _run_guard(args):
             if sr.verdict == GuardVerdict.DANGER:
                 top = sr.top_finding
                 desc = top.title if top else "Malicious"
+                source = _finding_source(top) if top else ""
                 print(f"  {R}[XX]{RST} {sr.name:<25s} {R}MALWARE{RST} — {desc}")
+                if source:
+                    print(f"       {D}detected by: {source}{RST}")
+                if top and top.evidence:
+                    print(f"       {D}evidence: \"{top.evidence[:120]}\"{RST}")
                 if top:
                     print(f"       {C}-> {top.remediation}{RST}")
             elif sr.verdict == GuardVerdict.WARNING:
                 top = sr.top_finding
                 desc = top.title if top else "Suspicious"
+                source = _finding_source(top) if top else ""
                 print(f"  {Y}[!!]{RST} {sr.name:<25s} {Y}SUSPICIOUS{RST} — {desc}")
+                if source:
+                    print(f"       {D}detected by: {source}{RST}")
+                if top and top.evidence and verbose:
+                    print(f"       {D}evidence: \"{top.evidence[:120]}\"{RST}")
                 if top:
                     print(f"       {C}-> {top.remediation}{RST}")
             elif sr.verdict == GuardVerdict.ERROR:
@@ -585,10 +1083,25 @@ def _run_guard(args):
             print(f"  {G}[OK]{RST} {safe_count} more safe skills")
         print()
 
-    # MCP servers
+    # MCP servers — with registry risk labels
     if report.mcp_results:
         print(f"  {B}MCP SERVERS{RST}")
+        try:
+            from agentseal.mcp_registry import MCPRegistry
+            _registry = MCPRegistry()
+        except Exception:
+            _registry = None
         for mr in report.mcp_results:
+            # Look up risk info from registry
+            reg_info = None
+            if _registry:
+                reg_info = _registry.lookup(mr.name)
+            risk_tag = ""
+            if reg_info:
+                rl = reg_info.risk_level
+                rl_color = R if rl == "critical" else Y if rl == "high" else D
+                risk_tag = f" {rl_color}[{rl}]{RST}"
+
             if mr.verdict == GuardVerdict.DANGER:
                 top = mr.top_finding
                 desc = top.title if top else "Critical issue"
@@ -602,7 +1115,30 @@ def _run_guard(args):
                 if top:
                     print(f"       {C}-> {top.remediation}{RST}")
             else:
-                print(f"  {G}[OK]{RST} {mr.name:<25s} {G}SAFE{RST}")
+                if reg_info and reg_info.risk_level in ("critical", "high"):
+                    # Config is safe but server itself is inherently risky
+                    print(f"  {G}[OK]{RST} {mr.name:<25s} {G}SAFE{RST} (config){risk_tag}")
+                    print(f"       {D}{reg_info.category} | {reg_info.description}{RST}")
+                else:
+                    print(f"  {G}[OK]{RST} {mr.name:<25s} {G}SAFE{RST}{risk_tag}")
+        print()
+
+    # MCP runtime results (from --connect)
+    if report.mcp_runtime_results:
+        print(f"  {B}MCP RUNTIME ANALYSIS{RST}")
+        for rr in report.mcp_runtime_results:
+            if rr.verdict == GuardVerdict.DANGER:
+                print(f"  {R}[XX]{RST} {rr.server_name:<25s} {R}DANGER{RST} ({rr.tools_found} tools, {len(rr.findings)} finding(s))")
+            elif rr.verdict == GuardVerdict.WARNING:
+                print(f"  {Y}[!!]{RST} {rr.server_name:<25s} {Y}WARNING{RST} ({rr.tools_found} tools, {len(rr.findings)} finding(s))")
+            elif rr.connection_status != "connected":
+                print(f"  {D}[??]{RST} {rr.server_name:<25s} {D}{rr.connection_status.upper()}{RST}")
+            else:
+                print(f"  {G}[OK]{RST} {rr.server_name:<25s} {G}SAFE{RST} ({rr.tools_found} tools)")
+            if verbose:
+                for finding in rr.findings:
+                    sev_color = R if finding.severity == "critical" else Y
+                    print(f"       {sev_color}{finding.code} {finding.severity.upper()}{RST} {finding.title}")
         print()
 
     # Toxic flows
@@ -620,6 +1156,13 @@ def _run_guard(args):
         print(f"  {B}BASELINE CHANGES{RST}")
         for change in report.baseline_changes:
             print(f"  {Y}[!!]{RST} {change.server_name}: {change.detail}")
+        print()
+
+    # Severity breakdown bar (GAP 11)
+    _sev_counts = _count_severities(report)
+    if any(_sev_counts.values()):
+        print(f"  {B}SEVERITY{RST}")
+        _print_severity_bar(_sev_counts, R, Y, C, D, RST)
         print()
 
     # Summary
@@ -658,6 +1201,215 @@ def _run_guard(args):
     # Exit code: 1 if critical threats found
     if report.has_critical:
         sys.exit(1)
+
+
+def _run_scan_mcp(args):
+    """Run the scan-mcp command — runtime MCP server scanning."""
+    from agentseal.scan_mcp import ScanMCP
+
+    R = "\033[91m"
+    Y = "\033[93m"
+    G = "\033[92m"
+    D = "\033[90m"
+    C = "\033[96m"
+    B = "\033[1m"
+    RST = "\033[0m"
+
+    json_mode = getattr(args, "output", None) == "json"
+    verbose = getattr(args, "verbose", False)
+
+    # Handle --reset-baselines
+    if getattr(args, "reset_baselines", False):
+        from agentseal.baselines import BaselineStore
+        store = BaselineStore()
+        count = store.reset()
+        if not json_mode:
+            print(f"  {D}Reset {count} baseline(s). All servers will be re-baselined.{RST}")
+            print()
+
+    # Determine which servers to scan
+    servers: list[dict] = []
+
+    if getattr(args, "url", None):
+        # Direct URL scan
+        servers = [{"name": args.url, "url": args.url, "agent_type": "remote"}]
+    else:
+        # Discover from machine
+        from agentseal.machine_discovery import scan_machine
+        _agents, mcp_servers, _skills = scan_machine()
+
+        if getattr(args, "server", None):
+            # Filter to specific server
+            target = args.server.lower()
+            servers = [s for s in mcp_servers if s.get("name", "").lower() == target]
+            if not servers:
+                if not json_mode:
+                    print(f"  {R}Error:{RST} Server '{args.server}' not found in config.")
+                    print(f"  {D}Available servers:{RST}")
+                    for s in mcp_servers:
+                        print(f"    - {s.get('name', 'unknown')}")
+                sys.exit(1)
+        else:
+            servers = mcp_servers
+
+    if not servers:
+        if not json_mode:
+            print(f"  {D}No MCP servers found. Nothing to scan.{RST}")
+        sys.exit(0)
+
+    # Confirmation prompt (skip with --yes or in JSON mode)
+    if not json_mode and not getattr(args, "yes", False):
+        print()
+        print(f"  {B}AgentSeal scan-mcp{RST} — Runtime MCP Server Scanner")
+        print(f"  {'─' * 52}")
+        print()
+        print(f"  Will connect to {B}{len(servers)}{RST} MCP server(s):")
+        for s in servers:
+            cmd = s.get("command", s.get("url", "?"))
+            print(f"    {C}•{RST} {s.get('name', 'unknown')} ({D}{cmd}{RST})")
+        print()
+        try:
+            answer = input(f"  Proceed? [{G}Y{RST}/n] ").strip().lower()
+            if answer and answer not in ("y", "yes"):
+                print(f"  {D}Cancelled.{RST}")
+                sys.exit(0)
+        except (EOFError, KeyboardInterrupt):
+            print()
+            sys.exit(0)
+
+    if not json_mode:
+        _print_banner(show_tagline=False)
+        print()
+        print(f"  {B}AgentSeal scan-mcp{RST} — Runtime MCP Server Scanner")
+        print(f"  {'─' * 52}")
+        print()
+
+    def on_progress(phase, detail):
+        if not json_mode:
+            print(f"  {D}{detail}{RST}")
+
+    scanner = ScanMCP(
+        timeout=getattr(args, "timeout", 30.0),
+        concurrency=getattr(args, "concurrency", 3),
+        on_progress=on_progress,
+    )
+    report = scanner.run(servers)
+
+    # ── JSON output ────────────────────────────────────────────────
+    if json_mode:
+        print(report.to_json())
+        if getattr(args, "save", None):
+            Path(args.save).write_text(report.to_json(), encoding="utf-8")
+            print(f"Saved to {args.save}", file=sys.stderr)
+        exit_code = 0
+        if report.has_critical:
+            exit_code = 1
+        if getattr(args, "min_score", None) and report.min_score < args.min_score:
+            exit_code = 1
+        sys.exit(exit_code)
+        return
+
+    # ── Terminal output ────────────────────────────────────────────
+    print()
+    print(f"  {B}RESULTS{RST}")
+
+    for score in report.trust_scores:
+        # Find matching runtime result
+        rr = next((r for r in report.runtime_results if r.server_name == score.server_name), None)
+        tools_found = rr.tools_found if rr else 0
+        findings_count = len(rr.findings) if rr else 0
+
+        # Score color
+        if score.score >= 80:
+            sc = G
+        elif score.score >= 60:
+            sc = Y
+        else:
+            sc = R
+
+        # Status icon
+        if findings_count == 0:
+            icon = f"{G}✓{RST}"
+        else:
+            icon = f"{R}✗{RST}"
+
+        print(f"  {icon} {score.server_name:<25s} {D}{tools_found} tools{RST}   Score: {sc}{score.score}/100  {score.level.upper()}{RST}")
+
+        # Show findings in verbose mode or for critical/high
+        if rr:
+            for finding in rr.findings:
+                if verbose or finding.severity in ("critical", "high"):
+                    sev_color = R if finding.severity == "critical" else Y
+                    print(f"    {sev_color}{finding.code} {finding.severity.upper():<9s}{RST} {finding.title}")
+
+    # Connection errors
+    for err in report.connection_errors:
+        print(f"  {D}⊘{RST} {err.get('server_name', '?'):<25s} {R}{err.get('error_type', 'error').upper()}{RST} {D}{err.get('detail', '')}{RST}")
+
+    # Toxic flows
+    if report.toxic_flows:
+        print()
+        print(f"  {B}TOXIC FLOWS (runtime){RST}")
+        for flow in report.toxic_flows:
+            level_color = R if flow.risk_level == "high" else Y
+            print(f"  {level_color}[{flow.risk_level.upper()}]{RST} {flow.title}")
+            if flow.tools_involved:
+                print(f"       {D}Tools: {', '.join(flow.tools_involved)}{RST}")
+            print(f"       {C}-> {flow.remediation}{RST}")
+
+    # Baseline changes (rug pulls)
+    if report.baseline_changes:
+        print()
+        print(f"  {B}RUG PULL DETECTION{RST}")
+        for change in report.baseline_changes:
+            if change.change_type == "tools_changed":
+                print(f"  {R}[!!]{RST} {change.server_name}: {change.detail}")
+            elif change.change_type == "tools_added":
+                print(f"  {Y}[!!]{RST} {change.server_name}: {change.detail}")
+            else:
+                print(f"  {D}[--]{RST} {change.server_name}: {change.detail}")
+
+    # Summary
+    print()
+    print(f"  {'─' * 52}")
+    print(f"  Servers: {report.servers_connected} connected, {report.servers_failed} failed")
+    print(f"  Tools:   {report.total_tools} analyzed")
+
+    if report.total_findings > 0:
+        parts = []
+        if report.total_critical > 0:
+            parts.append(f"{R}{report.total_critical} critical{RST}")
+        if report.total_high > 0:
+            parts.append(f"{Y}{report.total_high} high{RST}")
+        if report.total_medium > 0:
+            parts.append(f"{D}{report.total_medium} medium{RST}")
+        print(f"  Findings: {', '.join(parts)}")
+    else:
+        print(f"  {G}No security findings detected.{RST}")
+
+    if report.baseline_changes:
+        print(f"  {R}Rug pulls: {len(report.baseline_changes)} detected{RST}")
+    if report.toxic_flows:
+        print(f"  Toxic flows: {len(report.toxic_flows)}")
+
+    print()
+    print(f"  {D}Scan completed in {report.duration_seconds:.1f} seconds.{RST}")
+    print()
+
+    # Save if requested
+    if getattr(args, "save", None):
+        Path(args.save).write_text(report.to_json(), encoding="utf-8")
+        print(f"  {D}Results saved to {args.save}{RST}")
+        print()
+
+    # Exit code
+    exit_code = 0
+    if report.has_critical:
+        exit_code = 1
+    if getattr(args, "min_score", None) and report.min_score < args.min_score:
+        exit_code = 1
+    if exit_code:
+        sys.exit(exit_code)
 
 
 def _run_shield(args):
@@ -715,14 +1467,26 @@ def _run_shield(args):
             print(f"  {D}[{ts}]{RST} {D}ERROR{RST}   {path} — {summary}")
 
     llm_judge = None
-    if getattr(args, "model", None):
+    # CLI flags take precedence, then fall back to saved config, then env vars
+    from agentseal.config import get_llm_config
+    saved = get_llm_config()
+    model = getattr(args, "model", None) or saved.get("model")
+    api_key = getattr(args, "api_key", None) or saved.get("api_key")
+    base_url = getattr(args, "litellm_url", None)
+    if not base_url:
+        cli_ollama = getattr(args, "ollama_url", None)
+        if cli_ollama and cli_ollama != "http://localhost:11434":
+            base_url = cli_ollama.rstrip("/") + "/v1"
+        else:
+            base_url = saved.get("litellm_url")
+            if not base_url and saved.get("ollama_url"):
+                base_url = saved["ollama_url"].rstrip("/") + "/v1"
+    if model:
         from agentseal.llm_judge import LLMJudge
         llm_judge = LLMJudge(
-            model=args.model,
-            api_key=getattr(args, "api_key", None),
-            ollama_url=getattr(args, "ollama_url", None),
-            litellm_url=getattr(args, "litellm_url", None),
-            scan_all=getattr(args, "llm_all", False),
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
         )
 
     shield = Shield(

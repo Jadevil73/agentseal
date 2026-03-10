@@ -22,11 +22,14 @@ The user does NOTHING manual. We do ALL the work.
 
 import ast
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -162,7 +165,7 @@ class AgentDiscovery:
                     self._check_env_file(path, rel)
             except Exception:
                 # Don't crash on unparseable files - just skip
-                pass
+                logger.debug("Skipped unparseable file: %s", path)
 
         # Check well-known config locations outside the project
         self._check_claude_desktop()

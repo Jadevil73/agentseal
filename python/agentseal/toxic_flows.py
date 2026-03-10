@@ -1,15 +1,17 @@
 # agentseal/toxic_flows.py
 """
-Lightweight toxic flow detection - static analysis only (no MCP runtime).
+Toxic flow detection — static and runtime analysis.
 
-Classifies MCP servers by capability labels based on known package names
-and server name heuristics. Detects dangerous combinations of capabilities
-across servers that could enable data exfiltration, remote code execution,
+Classifies MCP servers by capability labels and detects dangerous
+combinations that could enable data exfiltration, remote code execution,
 or data destruction.
 
-Wave 2 scope: classification from config only (names + args).
-Phase 2 upgrade: replace with actual tool descriptions from list_tools().
+Two modes:
+  Static (Wave 2): classification from config only (names + args).
+  Runtime (Phase 2): classification from actual tool definitions.
 """
+
+from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
@@ -309,3 +311,414 @@ def analyze_toxic_flows(servers: list[dict]) -> list[ToxicFlow]:
         return []
 
     return _detect_combos(server_labels)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# RUNTIME CLASSIFICATION (Phase 2) — Tool-Level Analysis
+# ═══════════════════════════════════════════════════════════════════════
+
+from agentseal.mcp_runtime import MCPServerSnapshot, MCPToolSnapshot
+
+
+@dataclass
+class ToolCapability:
+    """Classification result for a single MCP tool."""
+    tool_name: str
+    server_name: str
+    labels: set[str]       # subset of ALL_LABELS
+    confidence: float      # 0.0–1.0 (highest evidence confidence)
+
+
+# Keyword → capability label mapping for tool name/description analysis.
+TOOL_KEYWORD_LABELS: dict[str, set[str]] = {
+    # private_data indicators
+    "read": {LABEL_PRIVATE},
+    "get": {LABEL_PRIVATE},
+    "list": {LABEL_PRIVATE},
+    "query": {LABEL_PRIVATE},
+    "search": {LABEL_PRIVATE},
+    # untrusted_content indicators
+    "fetch": {LABEL_UNTRUSTED},
+    "download": {LABEL_UNTRUSTED},
+    "browse": {LABEL_UNTRUSTED},
+    "crawl": {LABEL_UNTRUSTED},
+    "scrape": {LABEL_UNTRUSTED},
+    # public_sink indicators
+    "send": {LABEL_PUBLIC_SINK},
+    "post": {LABEL_PUBLIC_SINK},
+    "publish": {LABEL_PUBLIC_SINK},
+    "notify": {LABEL_PUBLIC_SINK},
+    "upload": {LABEL_PUBLIC_SINK},
+    "email": {LABEL_PUBLIC_SINK},
+    "message": {LABEL_PUBLIC_SINK},
+    "tweet": {LABEL_PUBLIC_SINK},
+    "share": {LABEL_PUBLIC_SINK},
+    # destructive indicators
+    "delete": {LABEL_DESTRUCTIVE},
+    "remove": {LABEL_DESTRUCTIVE},
+    "drop": {LABEL_DESTRUCTIVE},
+    "execute": {LABEL_DESTRUCTIVE},
+    "run": {LABEL_DESTRUCTIVE},
+    "write": {LABEL_DESTRUCTIVE},
+    "create": {LABEL_DESTRUCTIVE},
+    "update": {LABEL_DESTRUCTIVE},
+    "modify": {LABEL_DESTRUCTIVE},
+    "truncate": {LABEL_DESTRUCTIVE},
+}
+
+# Pre-compiled word-boundary patterns for each keyword (performance).
+_KEYWORD_PATTERNS: dict[str, re.Pattern] = {
+    kw: re.compile(r"\b" + re.escape(kw) + r"\b", re.IGNORECASE)
+    for kw in TOOL_KEYWORD_LABELS
+}
+
+# Parameter name → capability label mapping.
+PARAM_NAME_LABELS: dict[str, set[str]] = {
+    "file_path": {LABEL_PRIVATE},
+    "filepath": {LABEL_PRIVATE},
+    "filename": {LABEL_PRIVATE},
+    "path": {LABEL_PRIVATE},
+    "directory": {LABEL_PRIVATE},
+    "dir": {LABEL_PRIVATE},
+    "query": {LABEL_PRIVATE},
+    "sql": {LABEL_PRIVATE},
+    "table": {LABEL_PRIVATE},
+    "database": {LABEL_PRIVATE},
+    "url": {LABEL_UNTRUSTED},
+    "uri": {LABEL_UNTRUSTED},
+    "endpoint": {LABEL_UNTRUSTED},
+    "href": {LABEL_UNTRUSTED},
+    "command": {LABEL_DESTRUCTIVE},
+    "cmd": {LABEL_DESTRUCTIVE},
+    "script": {LABEL_DESTRUCTIVE},
+    "shell": {LABEL_DESTRUCTIVE},
+    "recipient": {LABEL_PUBLIC_SINK},
+    "to": {LABEL_PUBLIC_SINK},
+    "channel": {LABEL_PUBLIC_SINK},
+    "webhook": {LABEL_PUBLIC_SINK},
+    "webhook_url": {LABEL_PUBLIC_SINK},
+}
+
+# Patterns that indicate a "url" param is used for outbound sending.
+_OUTBOUND_URL_PATTERNS: re.Pattern = re.compile(
+    r"\b(?:post|send|upload|push|forward|submit)\b", re.IGNORECASE
+)
+
+
+def classify_tool(tool: MCPToolSnapshot, server_name: str) -> ToolCapability:
+    """Classify a single tool by its name, description, params, and annotations.
+
+    Three analysis layers:
+      1. Keyword matching on name + description
+      2. Parameter name analysis
+      3. Annotation analysis (destructiveHint, readOnlyHint)
+
+    Returns:
+        ToolCapability with labels and confidence score.
+    """
+    labels: set[str] = set()
+    max_confidence = 0.0
+
+    text_name = tool.name or ""
+    text_desc = tool.description or ""
+
+    # ── Layer 1: Keyword matching ─────────────────────────────────────
+    # Tool names use underscores/hyphens as separators (e.g. "read_file").
+    # Since _ is a word character in regex, \bread\b won't match inside
+    # "read_file". Split name into segments for accurate matching.
+    name_segments = set(re.split(r"[_\-.]", text_name.lower()))
+
+    for keyword, kw_labels in TOOL_KEYWORD_LABELS.items():
+        # Check name via segment matching (more reliable for tool names)
+        if keyword in name_segments:
+            labels |= kw_labels
+            max_confidence = max(max_confidence, 0.8)
+        # Check description via word boundary regex (natural language)
+        elif _KEYWORD_PATTERNS[keyword].search(text_desc):
+            labels |= kw_labels
+            max_confidence = max(max_confidence, 0.7)
+
+    # ── Layer 2: Parameter name analysis ──────────────────────────────
+    schema = tool.input_schema or {}
+    properties = schema.get("properties", {})
+    if isinstance(properties, dict):
+        for param_name in properties:
+            if not isinstance(param_name, str):
+                continue
+            param_lower = param_name.lower()
+            if param_lower in PARAM_NAME_LABELS:
+                param_labels = PARAM_NAME_LABELS[param_lower]
+                labels |= param_labels
+                max_confidence = max(max_confidence, 0.6)
+
+                # Special: url param + outbound verb in description → also public_sink
+                if param_lower in ("url", "uri", "endpoint", "href"):
+                    if _OUTBOUND_URL_PATTERNS.search(text_desc):
+                        labels.add(LABEL_PUBLIC_SINK)
+
+    # ── Layer 3: Annotation analysis ──────────────────────────────────
+    annotations = tool.annotations or {}
+    if annotations.get("destructiveHint") is True:
+        labels.add(LABEL_DESTRUCTIVE)
+        max_confidence = max(max_confidence, 1.0)
+
+    if annotations.get("readOnlyHint") is True:
+        # Read-only annotation takes precedence — remove destructive label
+        labels.discard(LABEL_DESTRUCTIVE)
+        max_confidence = max(max_confidence, 1.0)
+
+    if annotations.get("openWorldHint") is True:
+        labels.add(LABEL_UNTRUSTED)
+        max_confidence = max(max_confidence, 1.0)
+
+    return ToolCapability(
+        tool_name=tool.name,
+        server_name=server_name,
+        labels=labels,
+        confidence=max_confidence,
+    )
+
+
+def classify_server_runtime(
+    snapshot: MCPServerSnapshot,
+) -> list[ToolCapability]:
+    """Classify all tools in a server snapshot using runtime tool definitions.
+
+    Classification strategy:
+      1. Known server name → apply known labels to all tools (fast path)
+         PLUS union with tool-level analysis for additional labels.
+      2. Unknown server → classify each tool individually.
+      3. No tools → fall back to server name heuristics.
+    """
+    server_name = snapshot.server_name
+    server_name_lower = server_name.lower().strip()
+
+    # Resolve known server labels (if any)
+    known_labels: set[str] = set()
+    if server_name_lower in KNOWN_SERVER_LABELS:
+        known_labels = set(KNOWN_SERVER_LABELS[server_name_lower])
+    else:
+        for known, labels in KNOWN_SERVER_LABELS.items():
+            if known in server_name_lower:
+                known_labels = set(labels)
+                break
+
+    # If no tools, fall back to name-based classification
+    if not snapshot.tools:
+        if not known_labels:
+            # Try heuristic patterns on server name
+            for pattern, h_labels in _NAME_HEURISTICS:
+                if pattern.search(server_name_lower):
+                    known_labels |= h_labels
+        if known_labels:
+            # Known server name → 1.0; heuristic match → 0.5
+            conf = 1.0 if server_name_lower in KNOWN_SERVER_LABELS else 0.5
+            return [ToolCapability(
+                tool_name="",
+                server_name=server_name,
+                labels=known_labels,
+                confidence=conf,
+            )]
+        return []
+
+    # Classify each tool individually
+    capabilities: list[ToolCapability] = []
+    for tool in snapshot.tools:
+        cap = classify_tool(tool, server_name)
+        # Union with known labels (known server always applies to all tools)
+        if known_labels:
+            cap.labels |= known_labels
+            cap.confidence = max(cap.confidence, 1.0)
+        capabilities.append(cap)
+
+    return capabilities
+
+
+def _detect_tool_combos(
+    capabilities: list[ToolCapability],
+) -> list[ToxicFlow]:
+    """Detect dangerous tool combinations WITHIN a single server.
+
+    Only flags when DIFFERENT tools provide the dangerous labels.
+    A single tool having multiple labels is normal (e.g. file manager).
+    """
+    flows: list[ToxicFlow] = []
+
+    # Group capabilities by server
+    by_server: dict[str, list[ToolCapability]] = {}
+    for cap in capabilities:
+        by_server.setdefault(cap.server_name, []).append(cap)
+
+    for server_name, tools in by_server.items():
+        if len(tools) < 2:
+            continue
+
+        # Build per-tool label mapping: label → set of tool names
+        label_tools: dict[str, set[str]] = {}
+        for cap in tools:
+            for label in cap.labels:
+                label_tools.setdefault(label, set()).add(cap.tool_name)
+
+        # All labels available on this server
+        all_labels = set(label_tools.keys())
+
+        # Check dangerous combos where different tools provide the labels
+        def _diff_tools(label_a: str, label_b: str) -> bool:
+            """True if the two labels come from at least some different tools."""
+            tools_a = label_tools.get(label_a, set())
+            tools_b = label_tools.get(label_b, set())
+            return bool(tools_a - tools_b) or bool(tools_b - tools_a)
+
+        # Full chain: untrusted + private + sink from different tools
+        if (LABEL_UNTRUSTED in all_labels
+                and LABEL_PRIVATE in all_labels
+                and LABEL_PUBLIC_SINK in all_labels):
+            # At least two of the three must come from different tools
+            labels_to_check = [LABEL_UNTRUSTED, LABEL_PRIVATE, LABEL_PUBLIC_SINK]
+            has_separation = any(
+                _diff_tools(labels_to_check[i], labels_to_check[j])
+                for i in range(len(labels_to_check))
+                for j in range(i + 1, len(labels_to_check))
+            )
+            if has_separation:
+                flows.append(ToxicFlow(
+                    risk_level="high",
+                    risk_type="full_chain",
+                    title="Intra-server full attack chain",
+                    description=(
+                        f"Server '{server_name}' has tools that collectively can "
+                        f"fetch external content, read private data, and send data "
+                        f"externally — enabling a full attack chain within one server."
+                    ),
+                    servers_involved=[server_name],
+                    labels_involved=[LABEL_UNTRUSTED, LABEL_PRIVATE, LABEL_PUBLIC_SINK],
+                    remediation=(
+                        f"Review server '{server_name}' tool permissions. "
+                        f"Consider splitting into separate servers with reduced scope."
+                    ),
+                ))
+                continue  # Full chain subsumes individual combos
+
+        # Data exfiltration: private + sink from different tools
+        if (LABEL_PRIVATE in all_labels
+                and LABEL_PUBLIC_SINK in all_labels
+                and _diff_tools(LABEL_PRIVATE, LABEL_PUBLIC_SINK)):
+            flows.append(ToxicFlow(
+                risk_level="high",
+                risk_type="data_exfiltration",
+                title="Intra-server data exfiltration path",
+                description=(
+                    f"Server '{server_name}' has tools that can read private "
+                    f"data and send it externally within the same server."
+                ),
+                servers_involved=[server_name],
+                labels_involved=[LABEL_PRIVATE, LABEL_PUBLIC_SINK],
+                remediation=(
+                    f"Review server '{server_name}'. Consider removing "
+                    f"external communication tools or restricting data access."
+                ),
+            ))
+
+        # RCE: untrusted + destructive from different tools
+        if (LABEL_UNTRUSTED in all_labels
+                and LABEL_DESTRUCTIVE in all_labels
+                and _diff_tools(LABEL_UNTRUSTED, LABEL_DESTRUCTIVE)):
+            flows.append(ToxicFlow(
+                risk_level="high",
+                risk_type="remote_code_execution",
+                title="Intra-server remote code execution path",
+                description=(
+                    f"Server '{server_name}' has tools that can fetch external "
+                    f"content and execute destructive operations."
+                ),
+                servers_involved=[server_name],
+                labels_involved=[LABEL_UNTRUSTED, LABEL_DESTRUCTIVE],
+                remediation=(
+                    f"Review server '{server_name}'. Consider sandboxing "
+                    f"destructive operations or restricting external content access."
+                ),
+            ))
+
+    return flows
+
+
+def analyze_toxic_flows_runtime(
+    snapshots: list[MCPServerSnapshot],
+) -> list[ToxicFlow]:
+    """Analyze MCP servers for dangerous capability combinations using runtime data.
+
+    Uses actual tool definitions (names, descriptions, parameters, annotations)
+    for more accurate classification than static name-based analysis.
+
+    Detects both cross-server and intra-server dangerous tool combinations.
+
+    Args:
+        snapshots: List of MCPServerSnapshot objects from mcp_runtime.
+
+    Returns:
+        List of detected toxic flows (empty if safe).
+    """
+    if not snapshots:
+        return []
+
+    # Step 1: Classify all tools across all servers
+    all_capabilities: list[ToolCapability] = []
+    for snapshot in snapshots:
+        caps = classify_server_runtime(snapshot)
+        all_capabilities.extend(caps)
+
+    if not all_capabilities:
+        return []
+
+    # Step 2: Build server-level label union for cross-server detection
+    server_labels: dict[str, set[str]] = {}
+    for cap in all_capabilities:
+        server_labels.setdefault(cap.server_name, set()).update(cap.labels)
+
+    # Remove servers with no labels
+    server_labels = {k: v for k, v in server_labels.items() if v}
+
+    flows: list[ToxicFlow] = []
+
+    # Step 3: Cross-server combo detection (reuse existing logic, needs 2+ servers)
+    if len(server_labels) >= 2:
+        cross_flows = _detect_combos(server_labels)
+        # Annotate cross-server flows with tool-level detail
+        for flow in cross_flows:
+            tools_involved = _collect_tools_for_flow(
+                flow.labels_involved, all_capabilities, flow.servers_involved,
+            )
+            flow.servers_involved = flow.servers_involved  # already set
+            # Enrich description with tool-level detail if available
+            if tools_involved:
+                tool_detail = ", ".join(tools_involved[:10])
+                flow.description += f" Tools involved: {tool_detail}."
+        flows.extend(cross_flows)
+
+    # Step 4: Intra-server tool combo detection
+    intra_flows = _detect_tool_combos(all_capabilities)
+    flows.extend(intra_flows)
+
+    return flows
+
+
+def _collect_tools_for_flow(
+    labels: list[str],
+    capabilities: list[ToolCapability],
+    servers: list[str],
+) -> list[str]:
+    """Collect qualified tool names (server:tool) that contribute to a flow."""
+    result: list[str] = []
+    server_set = set(servers)
+    for cap in capabilities:
+        if cap.server_name not in server_set:
+            continue
+        if not cap.tool_name:
+            continue
+        contributing_labels = cap.labels & set(labels)
+        if contributing_labels:
+            label_str = "+".join(sorted(contributing_labels))
+            qualified = f"{cap.server_name}:{cap.tool_name} ({label_str})"
+            if qualified not in result:
+                result.append(qualified)
+    return result

@@ -27,12 +27,46 @@ class TestStripJsonComments:
         text = '{\n  /* comment\n  block */\n  "key": "value"\n}'
         assert json.loads(_strip_json_comments(text)) == {"key": "value"}
 
+    def test_urls_in_strings_preserved(self):
+        """URLs containing // inside string values must NOT be stripped."""
+        text = '{\n  // This is a comment\n  "url": "https://example.com/api/v1",\n  "other": "http://localhost:11434/v1"\n}'
+        result = json.loads(_strip_json_comments(text))
+        assert result == {"url": "https://example.com/api/v1", "other": "http://localhost:11434/v1"}
+
+    def test_url_with_inline_comment(self):
+        """URL in string followed by a // comment on the same line."""
+        text = '{\n  "url": "https://example.com" // comment here\n}'
+        result = json.loads(_strip_json_comments(text))
+        assert result == {"url": "https://example.com"}
+
+    def test_escaped_quotes_in_strings(self):
+        """Escaped quotes in strings should not confuse the parser."""
+        text = '{"key": "value with \\"quotes\\"", "k2": "v2"}'
+        result = json.loads(_strip_json_comments(text))
+        assert result == {"key": 'value with "quotes"', "k2": "v2"}
+
+    def test_mixed_comments_and_urls(self):
+        """Complex JSONC with comments, URLs, and nested values."""
+        text = '''{
+  // Server config
+  "servers": {
+    "api": {
+      "command": "npx",
+      "args": ["-y", "@example/server"],
+      /* This URL should be preserved */
+      "url": "https://api.example.com/v2/endpoint"
+    }
+  }
+}'''
+        result = json.loads(_strip_json_comments(text))
+        assert result["servers"]["api"]["url"] == "https://api.example.com/v2/endpoint"
+
 
 class TestGetWellKnownConfigs:
     def test_returns_list_of_configs(self):
         configs = _get_well_known_configs()
         assert isinstance(configs, list)
-        assert len(configs) >= 16
+        assert len(configs) >= 27
 
     def test_each_config_has_required_keys(self):
         configs = _get_well_known_configs()
@@ -49,6 +83,15 @@ class TestGetWellKnownConfigs:
         assert "Claude Code" in names
         assert "Cursor" in names
         assert "VS Code" in names
+        # New agents (March 2026)
+        assert "Amazon Q" in names
+        assert "Copilot CLI" in names
+        assert "Junie" in names
+        assert "Goose" in names
+        assert "Crush" in names
+        assert "Qwen Code" in names
+        assert "Grok CLI" in names
+        assert "Visual Studio" in names
 
 
 class TestScanMachine:
@@ -94,7 +137,7 @@ class TestScanMachine:
         mock_configs = [{
             "name": "TestAgent",
             "agent_type": "test",
-            "paths": {"all": tmp_path / "nonexistent.json"},
+            "paths": {"all": tmp_path / ".testagent" / "config.json"},
             "mcp_key": "mcpServers",
         }]
 

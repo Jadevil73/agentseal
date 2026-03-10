@@ -23,7 +23,7 @@ from agentseal.guard_models import (
     GuardVerdict,
     ToxicFlowResult,
 )
-from agentseal.machine_discovery import scan_machine
+from agentseal.machine_discovery import scan_directory, scan_machine
 from agentseal.mcp_checker import MCPConfigChecker
 from agentseal.skill_scanner import SkillScanner
 from agentseal.toxic_flows import analyze_toxic_flows
@@ -42,21 +42,33 @@ class Guard:
         verbose: bool = False,
         on_progress: Optional[ProgressFn] = None,
         llm_judge=None,
+        connect: bool = False,
+        timeout: float = 30.0,
+        concurrency: int = 3,
+        scan_path: Optional[str] = None,
     ):
         self.semantic = semantic
         self.verbose = verbose
         self._progress = on_progress or (lambda *a: None)
         self._llm_judge = llm_judge
+        self._connect = connect
+        self._timeout = timeout
+        self._concurrency = concurrency
+        self._scan_path = scan_path
 
     def run(self) -> GuardReport:
         """Execute full guard scan. Returns a GuardReport with all findings."""
         start = time.monotonic()
 
         # Phase 1: Discover agents, MCP servers, and skills
-        self._progress("discover", "Scanning for AI agents, skills, and MCP servers...")
-        agents, mcp_servers, skill_paths = scan_machine()
+        if self._scan_path:
+            self._progress("discover", f"Scanning directory: {self._scan_path}")
+            agents, mcp_servers, skill_paths = scan_directory(Path(self._scan_path))
+        else:
+            self._progress("discover", "Scanning for AI agents, skills, and MCP servers...")
+            agents, mcp_servers, skill_paths = scan_machine()
 
-        installed_count = sum(1 for a in agents if a.status == "found")
+        installed_count = sum(1 for a in agents if a.status in ("found", "installed_no_config"))
         self._progress(
             "discover",
             f"Found {installed_count} agents, {len(skill_paths)} skills, "
@@ -164,6 +176,25 @@ class Guard:
             else:
                 self._progress("baselines", "All baselines verified")
 
+        # Phase 6: Runtime MCP scanning (only with --connect)
+        mcp_runtime_results = []
+        if self._connect and mcp_servers:
+            self._progress("runtime", "Connecting to MCP servers for runtime analysis...")
+            from agentseal.scan_mcp import ScanMCP
+            scan = ScanMCP(
+                timeout=self._timeout,
+                concurrency=self._concurrency,
+                on_progress=self._progress,
+            )
+            scan_report = scan.run(mcp_servers)
+            mcp_runtime_results = scan_report.runtime_results
+            # Merge runtime toxic flows into guard toxic flows
+            for flow in scan_report.toxic_flows:
+                toxic_flow_results.append(flow)
+            # Merge runtime baseline changes
+            for change in scan_report.baseline_changes:
+                baseline_results.append(change)
+
         duration = time.monotonic() - start
 
         return GuardReport(
@@ -172,6 +203,7 @@ class Guard:
             agents_found=agents,
             skill_results=skill_results,
             mcp_results=mcp_results,
+            mcp_runtime_results=mcp_runtime_results,
             toxic_flows=toxic_flow_results,
             baseline_changes=baseline_results,
             llm_tokens_used=llm_tokens_used,

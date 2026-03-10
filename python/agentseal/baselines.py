@@ -88,9 +88,13 @@ class BaselineEntry:
     args: list[str]
     first_seen: str
     last_verified: str
+    # Phase 2: Tool signature tracking for rug pull detection
+    tool_signatures_hash: Optional[str] = None   # SHA256 of all tool hashes combined
+    tool_count: Optional[int] = None              # Number of tools at baseline time
+    tools_detail: Optional[list[dict]] = None     # [{name, hash}] for diff reporting
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "server_name": self.server_name,
             "agent_type": self.agent_type,
             "config_hash": self.config_hash,
@@ -101,6 +105,13 @@ class BaselineEntry:
             "first_seen": self.first_seen,
             "last_verified": self.last_verified,
         }
+        if self.tool_signatures_hash is not None:
+            d["tool_signatures_hash"] = self.tool_signatures_hash
+        if self.tool_count is not None:
+            d["tool_count"] = self.tool_count
+        if self.tools_detail is not None:
+            d["tools_detail"] = self.tools_detail
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> "BaselineEntry":
@@ -114,6 +125,9 @@ class BaselineEntry:
             args=d.get("args", []),
             first_seen=d.get("first_seen", ""),
             last_verified=d.get("last_verified", ""),
+            tool_signatures_hash=d.get("tool_signatures_hash"),
+            tool_count=d.get("tool_count"),
+            tools_detail=d.get("tools_detail"),
         )
 
 
@@ -278,3 +292,146 @@ class BaselineStore:
             except (json.JSONDecodeError, KeyError, OSError):
                 continue
         return entries
+
+    def check_server_tools(
+        self,
+        server_name: str,
+        agent_type: str,
+        snapshot: "MCPServerSnapshot",
+    ) -> list[BaselineChange]:
+        """Check tool definitions against stored baseline for rug pull detection.
+
+        Compares tool signature hashes to detect:
+          - tools_changed: existing tool definitions modified (CRITICAL)
+          - tools_added: new tools appeared (HIGH — scope expansion)
+          - tools_removed: tools disappeared (MEDIUM)
+
+        If no baseline exists yet, stores the current tools and returns empty list.
+
+        Args:
+            server_name: Server identifier for baseline lookup.
+            agent_type: Agent type for baseline lookup.
+            snapshot: Current MCPServerSnapshot with tools.
+
+        Returns:
+            List of BaselineChange objects (empty if no changes or first scan).
+        """
+        now = datetime.now(timezone.utc).isoformat()
+        existing = self.load(agent_type, server_name)
+
+        # Compute current tool hashes
+        current_detail = _compute_tools_detail(snapshot.tools)
+        current_hash = _compute_tools_hash(current_detail)
+
+        if existing is None:
+            # No baseline exists — nothing to do (check_server creates the entry)
+            return []
+
+        # If baseline has no tool data (old baseline), store tools and return empty
+        if existing.tool_signatures_hash is None:
+            existing.tool_signatures_hash = current_hash
+            existing.tool_count = len(snapshot.tools)
+            existing.tools_detail = current_detail
+            existing.last_verified = now
+            self.save(existing)
+            return []
+
+        # Compare
+        if existing.tool_signatures_hash == current_hash:
+            # No changes
+            existing.last_verified = now
+            self.save(existing)
+            return []
+
+        # Something changed — determine what
+        changes: list[BaselineChange] = []
+        old_tools = {t["name"]: t["hash"] for t in (existing.tools_detail or [])}
+        new_tools = {t["name"]: t["hash"] for t in current_detail}
+
+        old_names = set(old_tools.keys())
+        new_names = set(new_tools.keys())
+
+        # Tools removed
+        for name in sorted(old_names - new_names):
+            changes.append(BaselineChange(
+                server_name=server_name,
+                agent_type=agent_type,
+                change_type="tools_removed",
+                old_value=name,
+                new_value=None,
+                detail=f"Tool '{name}' was removed from server '{server_name}'.",
+            ))
+
+        # Tools added
+        for name in sorted(new_names - old_names):
+            changes.append(BaselineChange(
+                server_name=server_name,
+                agent_type=agent_type,
+                change_type="tools_added",
+                old_value=None,
+                new_value=name,
+                detail=f"New tool '{name}' appeared on server '{server_name}'. Scope expansion — review immediately.",
+            ))
+
+        # Tools changed (same name, different hash)
+        for name in sorted(old_names & new_names):
+            if old_tools[name] != new_tools[name]:
+                changes.append(BaselineChange(
+                    server_name=server_name,
+                    agent_type=agent_type,
+                    change_type="tools_changed",
+                    old_value=old_tools[name][:12],
+                    new_value=new_tools[name][:12],
+                    detail=f"Tool '{name}' definition changed on server '{server_name}'. Possible rug pull attack.",
+                ))
+
+        # Update baseline with new state
+        existing.tool_signatures_hash = current_hash
+        existing.tool_count = len(snapshot.tools)
+        existing.tools_detail = current_detail
+        existing.last_verified = now
+        self.save(existing)
+
+        return changes
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# TOOL HASHING (Phase 2)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _compute_tool_hash(tool: "MCPToolSnapshot") -> str:
+    """Compute SHA256 of a single tool's canonical definition.
+
+    Canonical form: JSON with sorted keys of {name, description, inputSchema}.
+    """
+    canonical = json.dumps({
+        "name": tool.name,
+        "description": tool.description or "",
+        "inputSchema": tool.input_schema or {},
+    }, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _compute_tools_detail(tools: list) -> list[dict]:
+    """Compute [{name, hash}] for a list of tools, sorted by name."""
+    detail = []
+    for tool in tools:
+        detail.append({
+            "name": tool.name,
+            "hash": _compute_tool_hash(tool),
+        })
+    detail.sort(key=lambda d: d["name"])
+    return detail
+
+
+def _compute_tools_hash(tools_detail: list[dict]) -> str:
+    """Compute combined SHA256 from sorted individual tool hashes."""
+    combined = "|".join(t["hash"] for t in tools_detail)
+    return hashlib.sha256(combined.encode("utf-8")).hexdigest()
+
+
+# Lazy import to avoid circular dependency (mcp_runtime imports nothing from baselines)
+try:
+    from agentseal.mcp_runtime import MCPServerSnapshot, MCPToolSnapshot
+except ImportError:
+    pass  # mcp_runtime not available — tool checking won't work
