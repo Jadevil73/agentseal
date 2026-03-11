@@ -405,7 +405,7 @@ describe("Shield integration", () => {
       (fp: string) => shield.handleChange(fp),
       100,
     );
-    const watcher = fsWatch(watchDir, { recursive: true }, (_eventType, filename) => {
+    const watcher = fsWatch(watchDir, {}, (_eventType, filename) => {
       if (filename) {
         (shield as any)._handler.handleEvent(join(watchDir, filename));
       }
