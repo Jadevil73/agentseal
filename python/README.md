@@ -122,6 +122,10 @@ agentseal scan --file ./prompt.txt --model gpt-4o --min-score 75
 | **LiteLLM** | `--model any --litellm-url http://...` | Depends |
 | **HTTP API** | `--url http://your-agent.com/chat` | No |
 
+## Pro Features
+
+[AgentSeal Pro](https://agentseal.org) extends the open source toolkit with MCP tool poisoning probes (+45), RAG poisoning probes (+28), multimodal attack probes (+13), behavioral genome mapping, GitHub repo security analysis, PDF reports, and a dashboard.
+
 ## Links
 
 - **Website and Dashboard**: [agentseal.org](https://agentseal.org)

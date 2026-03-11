@@ -140,7 +140,7 @@ agentseal guard
 
 ## Pro Features
 
-[AgentSeal Pro](https://agentseal.org) extends the open source scanner with MCP tool poisoning probes (+45), RAG poisoning probes (+28), multimodal attack probes (+13), behavioral genome mapping, PDF reports, and a dashboard.
+[AgentSeal Pro](https://agentseal.org) extends the open source scanner with MCP tool poisoning probes (+45), RAG poisoning probes (+28), multimodal attack probes (+13), behavioral genome mapping, GitHub repo security analysis, PDF reports, and a dashboard.
 
 ## Links
 

@@ -292,6 +292,7 @@ The core toolkit is **completely free** and open source.
 | **RAG poisoning probes** (`--rag`, +28) | - | Yes |
 | **Multimodal attack probes** (`--multimodal`, +13) | - | Yes |
 | **Behavioral genome mapping** (`--genome`) | - | Yes |
+| **GitHub repo security analysis** | - | Yes |
 | **PDF security report** (`--report`) | - | Yes |
 | **Dashboard** (track over time, `--upload`) | - | Yes |
 
