@@ -414,14 +414,17 @@ describe("Shield integration", () => {
     (shield as any)._running = true;
 
     try {
+      // Give the watcher time to initialize (fs.watch can miss early events)
+      await new Promise((r) => setTimeout(r, 200));
+
       // Write a skill file into the watched directory
       const skill = join(watchDir, "test-skill.md");
       writeFileSync(skill, "# Safe skill\nHelp with code review.");
 
-      // Wait for debounced scan to fire
+      // Wait for debounced scan to fire (longer timeout for CI)
       await Promise.race([
         eventReceived,
-        new Promise((r) => setTimeout(r, 3000)),
+        new Promise((r) => setTimeout(r, 5000)),
       ]);
 
       expect(events.length).toBeGreaterThanOrEqual(1);
