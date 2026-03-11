@@ -10,6 +10,14 @@
 
 **Find out if your AI agent can be hacked** - before someone else does.
 
+<p align="center">
+  <a href="https://agentseal.org">Website</a> &middot;
+  <a href="https://agentseal.org/docs">Docs</a> &middot;
+  <a href="https://agentseal.org/docs/quick-start">Quick Start</a> &middot;
+  <a href="https://agentseal.org/sealbench">SealBench</a> &middot;
+  <a href="https://x.com/agentseal_org">Twitter</a>
+</p>
+
 ```
    ██████╗   ██████╗ ███████╗███╗   ██╗████████╗███████╗███████╗ █████╗ ██╗
   ██╔══██╗ ██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝██╔════╝██╔════╝██╔══██╗██║
